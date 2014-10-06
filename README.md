@@ -33,4 +33,4 @@ The initial effort after import will be a focus on documenting Red Skull. Primar
 install and use it; its design, goals, and contribution guidelines; and the direction and 
 needs for it's advancement.
 
-Can you use it for "production use". Yes. Will it destroy your setup? Not likely. 
+Can you use it for "production use". Yes. Will it destroy your setup? Not likely. It only executes read-only commands unless you click the button to make a change. 
