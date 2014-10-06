@@ -29,6 +29,7 @@ as it is the result of only ~2.5 total weeks of effort and there are still much
 error handling to be written.  That said, the base functionality is there and
 working.
 
+<<<<<<< HEAD
 The initial effort after import will be a focus on documenting Red Skull.
 Primarily how to install and use it; its design, goals, and contribution
 guidelines; and the direction and needs for it's advancement.
@@ -74,3 +75,6 @@ Err, fo rnow look in main.go to see the URLs and whether you need to do a GET,
 PUT, DEL, or POST for that call. Most of it is pretty simple. I've just not
 documented it yet as I prefer to do it once things stabilize. If you want to
 help get that jumpstarted pull requests are welcome. :)
+
+
+Can you use it for "production use". Yes. Will it destroy your setup? Not likely. It only executes read-only commands unless you click the button to make a change. 
