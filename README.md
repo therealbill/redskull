@@ -29,7 +29,6 @@ as it is the result of only ~2.5 total weeks of effort and there are still much
 error handling to be written.  That said, the base functionality is there and
 working.
 
-<<<<<<< HEAD
 The initial effort after import will be a focus on documenting Red Skull.
 Primarily how to install and use it; its design, goals, and contribution
 guidelines; and the direction and needs for it's advancement.
