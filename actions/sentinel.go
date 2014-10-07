@@ -115,7 +115,7 @@ func (s *Sentinel) ResetPod(podname string) {
 func (s *Sentinel) GetSlaves(podname string) (slaves []client.SlaveInfo, err error) {
 	// TODO: Bubble errors to out custom error package
 	// See DoFailover for an example
-	return s.Connection.SentinelSlaves(podname), nil
+	return s.Connection.SentinelSlaves(podname)
 }
 
 func (s *Sentinel) GetSentinels(podname string) (sentinels []*Sentinel, err error) {
@@ -155,7 +155,7 @@ func (s *Sentinel) GetMaster(podname string) (master client.MasterAddress, err e
 func (s *Sentinel) MonitorPod(podname, address string, port, quorum int, auth string) (rp RedisPod, err error) {
 	// TODO: Update to new common and error packages
 	//log.Printf("S:MP-> add called for %s-> %s:%d", podname, address, port)
-	err = s.Connection.SentinelMonitor(podname, address, port, quorum)
+	_, err = s.Connection.SentinelMonitor(podname, address, port, quorum)
 	if err != nil {
 		return rp, err
 	}
@@ -177,7 +177,7 @@ func (s *Sentinel) MonitorPod(podname, address string, port, quorum int, auth st
 }
 
 func (s *Sentinel) RemovePod(podname string) (ok bool, err error) {
-	err = s.Connection.SentinelRemove(podname)
+	_, err = s.Connection.SentinelRemove(podname)
 	if err != nil {
 		// convert to custom errors package
 		return false, err
