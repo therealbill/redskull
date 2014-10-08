@@ -19,7 +19,6 @@ import (
 
 const GCPORT = "8008"
 
-
 // SentinelPodConfig is a struct carrying information about a Pod's config as
 // pulled from the sentinel config file.
 type SentinelPodConfig struct {
@@ -375,7 +374,7 @@ func (c *Constellation) MonitorPod(podname, address string, port, quorum int, au
 	// I generally dislike sleeps. Hoeever in
 	// this case it is a decent ooption for refreshing data from the
 	// sentinels
-	time.Sleep(2 * time.Second) 
+	time.Sleep(2 * time.Second)
 	pod.SentinelCount = successfulSentinels
 	if isLocal {
 		c.LocalPodMap[podname] = &pod
@@ -728,7 +727,7 @@ func (c *Constellation) LoadNodesForPod(pod *RedisPod, sentinel *Sentinel) {
 }
 
 // GetAllSentinelsQuietly is a convenience function used primarily in the
-// UI. 
+// UI.
 func (c *Constellation) GetAllSentinelsQuietly() (sentinels []*Sentinel) {
 	sentinels, _ = c.GetAllSentinels()
 	return
@@ -929,6 +928,7 @@ func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
 		c.LocalSentinel.GetSlaves(podname)
 		c.LoadNodesForPod(pod, &c.LocalSentinel)
 		pod = &spod
+		c.LocalPodMap[podname] = pod
 		return pod, err
 	}
 	sentinels, _ := c.GetAllSentinels()
@@ -943,6 +943,7 @@ func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
 			}
 			pod, _ := NewMasterFromMasterInfo(mi, auth)
 			pod.Master = master
+			c.RemotePodMap[podname] = &pod
 			return &pod, nil
 		}
 	}
@@ -1002,7 +1003,6 @@ func (c *Constellation) GetPodMap() (pods map[string]*RedisPod, err error) {
 	return pods, nil
 }
 
-
 // extractSentinelDirective parses the sentinel directives from the
 // sentinel config file
 func (c *Constellation) extractSentinelDirective(entries []string) error {
@@ -1040,7 +1040,7 @@ func (c *Constellation) extractSentinelDirective(entries []string) error {
 		pc.Sentinels[sentinel_address] = ""
 		if c.Peers == nil {
 			// This means the sentinel config has no bind statement
-			// So we will pull the local IP and use it 
+			// So we will pull the local IP and use it
 			// I don't like this but dont' have a great option either.
 			myhostname, err := os.Hostname()
 			if err != nil {
@@ -1160,7 +1160,6 @@ func (c *Constellation) ResetPod(podname string, simultaneous bool) {
 	}
 	c.GetAllSentinelsQuietly()
 }
-
 
 // By is a convenience type to enable sorting sentinels by their
 // monitored pod count
