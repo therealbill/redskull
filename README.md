@@ -70,10 +70,10 @@ I'll be making locations configurable soon.
 
 # Calling the API
 
-Err, fo rnow look in main.go to see the URLs and whether you need to do a GET,
+Err, for now look in main.go to see the URLs and whether you need to do a GET,
 PUT, DEL, or POST for that call. Most of it is pretty simple. I've just not
 documented it yet as I prefer to do it once things stabilize. If you want to
 help get that jumpstarted pull requests are welcome. :)
 
 
-Can you use it for "production use". Yes. Will it destroy your setup? Not likely. It only executes read-only commands unless you click the button to make a change. 
+Can you use it for "production use"? Yes. Will it destroy your setup? Not likely. It only executes read-only commands unless you click the button to make a change.
