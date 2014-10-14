@@ -52,7 +52,6 @@ type LaunchConfig struct {
 	GroupName           string
 	BindAddress         string
 	SentinelHostAddress string
-	SentinelPort        int
 }
 
 var config LaunchConfig
