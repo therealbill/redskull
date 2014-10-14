@@ -174,12 +174,12 @@ func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, er
 	}
 	host, port, err := GetAddressPair(name)
 	if err != nil {
-		log.Printf("Unable to determine connection info. Err:", err)
+		log.Print("Unable to determine connection info. Err:", err)
 		return
 	}
 	dnode, err := LoadNodeFromHostPort(host, port, auth)
 	if err != nil {
-		log.Printf("Unable to obtain connection . Err:", err)
+		log.Print("Unable to obtain connection . Err:", err)
 		return
 	}
 	c.NodeMap[name] = dnode
@@ -459,7 +459,7 @@ func (c *Constellation) GetAllSentinels() (sentinels []*Sentinel, err error) {
 	for _, s := range c.RemoteSentinels {
 		_, err := s.GetPods()
 		if err != nil {
-			log.Printf("Sentinel %s -> GetPods err:", s.Name, err)
+			log.Printf("Sentinel %s -> GetPods err: '%s'", s.Name, err)
 			continue
 		}
 		sentinels = append(sentinels, s)
@@ -585,7 +585,7 @@ func (c *Constellation) SetPeers() error {
 // LoadRemoteSentinels interrogates all known remote sentinels and crawls
 // the results to explore non-local configuration
 func (c *Constellation) LoadRemoteSentinels() {
-	for k, _ := range c.ConfiguredSentinels {
+	for k := range c.ConfiguredSentinels {
 		log.Printf("INIT REMOTE SENTINEL: %s", k)
 		c.AddSentinelByAddress(k)
 	}
@@ -949,7 +949,7 @@ func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
 	}
 
 	if err != nil {
-		log.Printf("Could NOT load pod from %s", podname, err)
+		log.Printf("Could NOT load pod '%s' from %s", podname, err)
 		return pod, err
 	}
 	return pod, nil
@@ -1074,7 +1074,6 @@ func (c *Constellation) extractSentinelDirective(entries []string) error {
 		log.Print(err)
 		return nil
 	}
-	return nil
 }
 
 // LoadSentinelConfigFile loads the local config file pulled from the
@@ -1103,7 +1102,7 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 				if err != nil {
 					// TODO: Fix this to return a different error if we can't
 					// connect to the sentinel
-					log.Printf("Misshapen sentinel directive: '%s'", line, err)
+					log.Printf("Misshapen sentinel directive: '%s'", line)
 				}
 			case "port":
 				iport, _ := strconv.Atoi(entries[1])

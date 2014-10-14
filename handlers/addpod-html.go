@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/therealbill/redskull/actions"
-	"github.com/zenazn/goji/web"
 	"encoding/json"
-	"io/ioutil"
+	"github.com/therealbill/redskull/actions"
 	"github.com/therealbill/redskull/common"
+	"github.com/zenazn/goji/web"
+	"io/ioutil"
 )
 
 // AddPodHTML is the action target for adding a pod. It does the heavy lifting
@@ -123,7 +123,6 @@ func AddSentinelHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	log.Print("########### ADD SENTINEL FORM PROCESSED ###########")
 	render(w, context)
 }
-
 
 func AddPodJSON(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Change to use actions package

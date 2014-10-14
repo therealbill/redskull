@@ -144,8 +144,8 @@ func main() {
 	goji.Get("/", handlers.Root) // Needs moved? instance tree?
 
 	// API URLS
-	goji.Get("/api/constellation/knownpods", handlers.APIGetPods)
-	goji.Put("/api/constellation/monitor/:podName", handlers.APIMonitorPod)
+	goji.Get("/api/knownpods", handlers.APIGetPods)
+	goji.Put("/api/monitor/:podName", handlers.APIMonitorPod)
 	goji.Post("/api/constellation/:podName/failover", handlers.APIFailover)
 
 	goji.Get("/api/pod/:podName", handlers.APIGetPod)

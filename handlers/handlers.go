@@ -159,7 +159,7 @@ func throwJSONParseError(req *http.Request) (retcode int, userMessage string) {
 	return
 }
 
-// handleFailoverError is/wa sused to handle sentinel being unable to failover. 
+// handleFailoverError is/wa sused to handle sentinel being unable to failover.
 // This is going to need to be used to track times when a call initiated a
 // failover that failed.
 func handleFailoverError(pod string, req *http.Request, orig_err error) (retcode int, userMessage string) {

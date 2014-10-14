@@ -67,7 +67,7 @@ func (n *RedisNode) UpdateData() (bool, error) {
 	}
 	if nodeinfo.Server.Version == "" {
 		log.Print("WARNING: Unable to get INFO or node!")
-		log.Print("Pulled: %+v", nodeinfo)
+		log.Printf("Pulled: %+v", nodeinfo)
 		n.LastUpdateValid = false
 		n.LastUpdateDelay = time.Since(n.LastUpdate)
 		return false, fmt.Errorf("Info() was blank, no errors")
