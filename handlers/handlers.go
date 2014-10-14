@@ -21,6 +21,8 @@ import (
 // super-constellation reflecting the evoluton of the constellation term
 var ManagedConstellation *actions.Constellation
 
+var TemplateBase string
+
 // InfoResponse represents the information returned in an API call
 type InfoResponse struct {
 	Status        string
@@ -56,7 +58,9 @@ func NewPageContext() (pc PageContext) {
 
 // getTemplateList returns the base template and the requested template
 func getTemplateList(tname string) []string {
-	tmpl_list := []string{"html/templates/base.html", fmt.Sprintf("html/templates/%s.html", tname)}
+	base := TemplateBase + "html/templates/base.html"
+	thisOne := TemplateBase + "html/templates/" + tname + ".html"
+	tmpl_list := []string{base, thisOne}
 	return tmpl_list
 }
 

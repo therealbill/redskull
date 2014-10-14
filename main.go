@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -52,6 +53,7 @@ type LaunchConfig struct {
 	GroupName           string
 	BindAddress         string
 	SentinelHostAddress string
+	TemplateDirectory   string
 }
 
 var config LaunchConfig
@@ -74,6 +76,14 @@ func init() {
 	ps := fmt.Sprintf("%s:%d", config.IP, config.Port)
 	log.Printf("binding to '%s'", ps)
 	flag.Set("bind", ps)
+
+	if config.TemplateDirectory > "" {
+		if !strings.HasSuffix(config.TemplateDirectory, "/") {
+			config.TemplateDirectory += "/"
+		}
+	}
+	handlers.TemplateBase = config.TemplateDirectory
+
 	// handle absent sentinel config file w/a default
 	if config.SentinelConfigFile == "" {
 		log.Print("ENV contained no SentinelConfigFile, using default")
