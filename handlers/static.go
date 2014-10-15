@@ -17,8 +17,9 @@ func Static(c web.C, w http.ResponseWriter, req *http.Request) {
 	//log.Printf("STATIC_URL: %s, %d", STATIC_URL, len(STATIC_URL))
 	//log.Printf("PATH: %s, %d", req.URL.Path, len(STATIC_URL))
 	static_file := req.URL.Path[7:]
+	root := TemplateBase + STATIC_ROOT
 	if len(static_file) != 0 {
-		f, err := http.Dir(STATIC_ROOT).Open(static_file)
+		f, err := http.Dir(root).Open(static_file)
 		if err == nil {
 			content := io.ReadSeeker(f)
 			http.ServeContent(w, req, static_file, time.Now(), content)
