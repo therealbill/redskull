@@ -65,6 +65,10 @@ type Constellation struct {
 	NodeNameToPodMap    map[string]string
 	ConfiguredSentinels map[string]interface{}
 	Metrics             ConstellationStats
+	LocalOverrides      SentinelOverrides
+}
+type SentinelOverrides struct {
+	BindAddress string
 }
 
 // GetConstellation returns an instance of a constellation. It requires the
@@ -72,7 +76,7 @@ type Constellation struct {
 // constellation, and hence this RedSkull instance, belongs to.
 // In the future this will be used in clsuter coordination as well as for a
 // protective measure against cluster merge
-func GetConstellation(name, cfg, group string) (*Constellation, error) {
+func GetConstellation(name, cfg, group, sentinelAddress string) (*Constellation, error) {
 	con := Constellation{Name: name}
 	con.SentinelConfig.ManagedPodConfigs = make(map[string]SentinelPodConfig)
 	con.PodToSentinelsMap = make(map[string][]*Sentinel)
@@ -86,11 +90,13 @@ func GetConstellation(name, cfg, group string) (*Constellation, error) {
 	con.NodeNameToPodMap = make(map[string]string)
 	con.ConfiguredSentinels = make(map[string]interface{})
 	con.Groupname = group
+	con.LocalOverrides = SentinelOverrides{BindAddress: sentinelAddress}
 	con.SentinelConfigName = cfg
 	con.LoadSentinelConfigFile()
 	con.LoadLocalPods()
 	con.LoadRemoteSentinels()
 	con.Balanced = true
+	con.PeerList = make(map[string]string)
 	log.Printf("Metrics: %+v", con.GetStats())
 	return &con, nil
 }
@@ -196,6 +202,7 @@ func (c *Constellation) GetPodAuth(podname string) string {
 
 // StartCache is used to start up the groupcache mechanism
 func (c *Constellation) StartCache() {
+	log.Print("Starting AuthCache")
 	var peers []string
 	for _, peer := range c.PeerList {
 		log.Printf("Assigning peer '%s'", peer)
@@ -1111,19 +1118,35 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 			case "dir":
 				c.SentinelConfig.Dir = entries[1]
 			case "bind":
-				c.SentinelConfig.Host = entries[1]
 				log.Printf("Local sentinel is listening on IP %s", c.SentinelConfig.Host)
-				if c.Peers == nil {
-					me := "http://" + c.SentinelConfig.Host + ":" + GCPORT
-					c.Peers = groupcache.NewHTTPPool(me)
-					c.PeerList[c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port)] = c.SentinelConfig.Host
-					c.SetPeers()
-					go http.ListenAndServe(c.SentinelConfig.Host+":"+GCPORT, http.HandlerFunc(c.Peers.ServeHTTP))
-					c.StartCache()
+				if c.LocalOverrides.BindAddress > "" {
+					log.Printf("Overriding Sentinel BIND directive '%s' with '%s'", entries[1], c.LocalOverrides.BindAddress)
+				} else {
+					c.SentinelConfig.Host = entries[1]
+					if c.Peers == nil {
+						me := "http://" + c.SentinelConfig.Host + ":" + GCPORT
+						c.Peers = groupcache.NewHTTPPool(me)
+						c.PeerList[c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port)] = c.SentinelConfig.Host
+						c.SetPeers()
+						go http.ListenAndServe(c.SentinelConfig.Host+":"+GCPORT, http.HandlerFunc(c.Peers.ServeHTTP))
+						c.StartCache()
+					}
 				}
 			case "":
 				if err == io.EOF {
 					log.Print("File load complete?")
+					if c.LocalOverrides.BindAddress > "" {
+						c.SentinelConfig.Host = c.LocalOverrides.BindAddress
+						log.Printf("Local sentinel is listening on IP %s", c.SentinelConfig.Host)
+						if c.Peers == nil {
+							me := "http://" + c.SentinelConfig.Host + ":" + GCPORT
+							c.Peers = groupcache.NewHTTPPool(me)
+							c.PeerList[c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port)] = c.SentinelConfig.Host
+							c.SetPeers()
+							go http.ListenAndServe(c.SentinelConfig.Host+":"+GCPORT, http.HandlerFunc(c.Peers.ServeHTTP))
+							c.StartCache()
+						}
+					}
 					return nil
 				}
 				//log.Printf("Local:config -> %+v", c.SentinelConfig)
@@ -1137,6 +1160,7 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 			log.Fatal(err)
 		}
 	}
+	return nil
 }
 
 // ResetPod this is the constellation cluster level call to issue a reset

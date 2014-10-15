@@ -110,7 +110,7 @@ func init() {
 }
 
 func main() {
-	mc, err := actions.GetConstellation(config.Name, config.SentinelConfigFile, config.GroupName)
+	mc, err := actions.GetConstellation(config.Name, config.SentinelConfigFile, config.GroupName, config.SentinelHostAddress)
 	if err != nil {
 		log.Fatal("Unable to connect to constellation")
 	}
@@ -120,13 +120,18 @@ func main() {
 	//flag.Set("bind", mc.SentinelConfig.Host+":8000")
 
 	go RefreshData()
-	for _, pod := range mc.PodMap {
+	pm, _ := mc.GetPodMap()
+	for _, pod := range pm {
 		handlers.NodeMaster.AddNode(pod.Master)
 		//for _, node := range pod.Nodes { handlers.NodeMaster.AddNode(&node) }
 	}
 	mc.IsBalanced()
 	handlers.ManagedConstellation = mc
 	_ = handlers.NewPageContext()
+	if handlers.ManagedConstellation.AuthCache == nil {
+		log.Print("Uninitialized AuthCache, StartCache not called, calling now")
+		handlers.ManagedConstellation.StartCache()
+	}
 	log.Printf("Main Cache Stats: %+v", handlers.ManagedConstellation.AuthCache.GetStats())
 	log.Printf("Hot Cache Stats: %+v", handlers.ManagedConstellation.AuthCache.GetHotStats())
 	//log.Printf("MC:%+v", handlers.ManagedConstellation)
