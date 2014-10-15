@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -30,22 +31,13 @@ func RefreshData() {
 		handlers.ManagedConstellation.GetAllSentinels()
 		for _, pod := range handlers.ManagedConstellation.RemotePodMap {
 			_, _ = handlers.ManagedConstellation.LocalPodMap[pod.Name]
-			//if islocal { continue }
 			auth := handlers.ManagedConstellation.GetPodAuth(pod.Name)
 			if pod.AuthToken != auth && auth > "" {
 				pod.AuthToken = auth
 			}
-			/*
-				for _, node := range pod.Nodes {
-					node.Auth = pod.AuthToken
-					handlers.NodeMaster.AddNode(node)
-					node.UpdateData()
-				}
-			*/
 		}
 		for _, pod := range handlers.ManagedConstellation.LocalPodMap {
 			pod.AuthToken = handlers.ManagedConstellation.GetPodAuth(pod.Name)
-			//for _, node := range pod.Nodes { node.Auth = pod.AuthToken node.UpdateData() }
 		}
 		handlers.ManagedConstellation.IsBalanced()
 		log.Printf("Main Cache Stats: %+v", handlers.ManagedConstellation.AuthCache.GetStats())
@@ -54,28 +46,44 @@ func RefreshData() {
 }
 
 type LaunchConfig struct {
-	Name               string
-	Port               int
-	SentinelConfigFile string
-	GroupName          string
+	Name                string
+	Port                int
+	IP                  string
+	SentinelConfigFile  string
+	GroupName           string
+	BindAddress         string
+	SentinelHostAddress string
+	TemplateDirectory   string
 }
 
+var config LaunchConfig
+
 func init() {
-	var config LaunchConfig
 	err := envconfig.Process("redskull", &config)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	log.Printf("Launch Config: %+v", config)
-	if config.Port == 0 {
-		log.Print("ENV contained no port, using default")
-		flag.Set("bind", ":8000")
+	if config.BindAddress > "" {
+		flag.Set("bind", config.BindAddress)
 	} else {
-		ps := fmt.Sprintf(":%d", config.Port)
-		_ = ps
-		//flag.Set("bind", ps)
+		if config.Port == 0 {
+			log.Print("ENV contained no port, using default")
+			config.Port = 8000
+		}
 	}
+	ps := fmt.Sprintf("%s:%d", config.IP, config.Port)
+	log.Printf("binding to '%s'", ps)
+	flag.Set("bind", ps)
+
+	if config.TemplateDirectory > "" {
+		if !strings.HasSuffix(config.TemplateDirectory, "/") {
+			config.TemplateDirectory += "/"
+		}
+	}
+	handlers.TemplateBase = config.TemplateDirectory
+
 	// handle absent sentinel config file w/a default
 	if config.SentinelConfigFile == "" {
 		log.Print("ENV contained no SentinelConfigFile, using default")
@@ -88,6 +96,20 @@ func init() {
 		log.Print("ENV contained no GroupName, using default:" + config.GroupName)
 	}
 
+	key = os.Getenv("AIRBRAKE_API_KEY")
+	airbrake.Endpoint = "https://api.airbrake.io/notifier_api/v2/notices"
+	airbrake.ApiKey = key
+	airbrake.Environment = os.Getenv("RSM_ENVIRONMENT")
+	if len(airbrake.Environment) == 0 {
+		airbrake.Environment = "Development"
+	}
+	if len(Build) == 0 {
+		Build = ".1"
+		return
+	}
+}
+
+func main() {
 	mc, err := actions.GetConstellation(config.Name, config.SentinelConfigFile, config.GroupName)
 	if err != nil {
 		log.Fatal("Unable to connect to constellation")
@@ -108,20 +130,6 @@ func init() {
 	log.Printf("Main Cache Stats: %+v", handlers.ManagedConstellation.AuthCache.GetStats())
 	log.Printf("Hot Cache Stats: %+v", handlers.ManagedConstellation.AuthCache.GetHotStats())
 	//log.Printf("MC:%+v", handlers.ManagedConstellation)
-	key = os.Getenv("AIRBRAKE_API_KEY")
-	airbrake.Endpoint = "https://api.airbrake.io/notifier_api/v2/notices"
-	airbrake.ApiKey = key
-	airbrake.Environment = os.Getenv("RSM_ENVIRONMENT")
-	if len(airbrake.Environment) == 0 {
-		airbrake.Environment = "Development"
-	}
-	if len(Build) == 0 {
-		Build = ".1"
-		return
-	}
-}
-
-func main() {
 
 	// HTML Interface URLS
 	goji.Get("/constellation/", handlers.ConstellationInfoHTML) // Needs moved? instance tree?
@@ -144,8 +152,8 @@ func main() {
 	goji.Get("/", handlers.Root) // Needs moved? instance tree?
 
 	// API URLS
-	goji.Get("/api/constellation/knownpods", handlers.APIGetPods)
-	goji.Put("/api/constellation/monitor/:podName", handlers.APIMonitorPod)
+	goji.Get("/api/knownpods", handlers.APIGetPods)
+	goji.Put("/api/monitor/:podName", handlers.APIMonitorPod)
 	goji.Post("/api/constellation/:podName/failover", handlers.APIFailover)
 
 	goji.Get("/api/pod/:podName", handlers.APIGetPod)

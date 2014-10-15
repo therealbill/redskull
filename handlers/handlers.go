@@ -21,6 +21,8 @@ import (
 // super-constellation reflecting the evoluton of the constellation term
 var ManagedConstellation *actions.Constellation
 
+var TemplateBase string
+
 // InfoResponse represents the information returned in an API call
 type InfoResponse struct {
 	Status        string
@@ -56,7 +58,9 @@ func NewPageContext() (pc PageContext) {
 
 // getTemplateList returns the base template and the requested template
 func getTemplateList(tname string) []string {
-	tmpl_list := []string{"html/templates/base.html", fmt.Sprintf("html/templates/%s.html", tname)}
+	base := TemplateBase + "html/templates/base.html"
+	thisOne := TemplateBase + "html/templates/" + tname + ".html"
+	tmpl_list := []string{base, thisOne}
 	return tmpl_list
 }
 
@@ -159,7 +163,7 @@ func throwJSONParseError(req *http.Request) (retcode int, userMessage string) {
 	return
 }
 
-// handleFailoverError is/wa sused to handle sentinel being unable to failover. 
+// handleFailoverError is/wa sused to handle sentinel being unable to failover.
 // This is going to need to be used to track times when a call initiated a
 // failover that failed.
 func handleFailoverError(pod string, req *http.Request, orig_err error) (retcode int, userMessage string) {

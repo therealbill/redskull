@@ -63,7 +63,7 @@ func (rp *RedisPod) CanFailover() bool {
 	if rp.Master == nil {
 		master, err := LoadNodeFromHostPort(rp.Info.IP, rp.Info.Port, rp.AuthToken)
 		if err != nil {
-			log.Printf("Unable to load %s. Err:", rp.Name, err)
+			log.Printf("Unable to load %s. Err: '%s'", rp.Name, err)
 			if strings.Contains(err.Error(), "invalid password") {
 				rp.ValidAuth = false
 			} else {
