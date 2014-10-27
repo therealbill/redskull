@@ -204,6 +204,11 @@ func (c *Constellation) GetPodAuth(podname string) string {
 func (c *Constellation) StartCache() {
 	log.Print("Starting AuthCache")
 	var peers []string
+	if c.PeerList == nil {
+		log.Print("Initializing PeerList")
+		c.PeerList = make(map[string]string)
+	}
+
 	for _, peer := range c.PeerList {
 		log.Printf("Assigning peer '%s'", peer)
 		if peer > "" {
@@ -239,7 +244,9 @@ func (c *Constellation) LoadLocalPods() error {
 	// Initialize local sentinel
 	if c.LocalSentinel.Name == "" {
 		log.Print("Initializing LOCAL sentinel")
+		var address string
 		if c.SentinelConfig.Host == "" {
+			log.Print("No Hostname, determining local hostname")
 			myhostname, err := os.Hostname()
 			if err != nil {
 				log.Print(err)
@@ -247,20 +254,21 @@ func (c *Constellation) LoadLocalPods() error {
 			myip, err := net.LookupHost(myhostname)
 			if err != nil {
 				log.Fatal(err)
-
 			}
 			c.LocalSentinel.Host = myip[0]
+			c.SentinelConfig.Host = myip[0]
+			address = fmt.Sprintf("%s:%d", myip[0], c.SentinelConfig.Port)
+			c.LocalSentinel.Name = address
+			log.Printf("Determined LOCAL address is: %s", address)
+			log.Printf("Determined LOCAL name is: %s", c.LocalSentinel.Name)
+			c.LocalSentinel.Connection, err = client.DialWithConfig(&client.DialConfig{Address: address})
+			if err != nil {
+				// Handle error reporting here!
+				//log.Printf("SentinelConfig=%+v", c.SentinelConfig)
+				log.Fatalf("LOCAL Sentinel '%s' failed connection attempt", c.LocalSentinel.Name)
+			}
+			c.LocalSentinel.Info, _ = c.LocalSentinel.Connection.SentinelInfo()
 		}
-		address := fmt.Sprintf("%s:%d", c.SentinelConfig.Host, c.SentinelConfig.Port)
-		c.LocalSentinel.Name = address
-		var err error
-		c.LocalSentinel.Connection, err = client.DialWithConfig(&client.DialConfig{Address: address})
-		if err != nil {
-			// Handle error reporting here!
-			//log.Printf("SentinelConfig=%+v", c.SentinelConfig)
-			log.Fatalf("LOCAL Sentinel '%s' failed connection attempt", c.LocalSentinel.Name)
-		}
-		c.LocalSentinel.Info, _ = c.LocalSentinel.Connection.SentinelInfo()
 	}
 	for pname, pconfig := range c.SentinelConfig.ManagedPodConfigs {
 		mi, err := c.LocalSentinel.GetMaster(pname)
@@ -1058,6 +1066,7 @@ func (c *Constellation) extractSentinelDirective(entries []string) error {
 				log.Print(err)
 			}
 			c.LocalSentinel.Host = myip[0]
+			log.Printf("NO BIND STATEMENT FOUND. USING: '%s'", c.LocalSentinel.Host)
 			me := "http://" + c.SentinelConfig.Host + ":" + GCPORT
 			c.Peers = groupcache.NewHTTPPool(me)
 			c.PeerList[c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port)] = c.SentinelConfig.Host
@@ -1138,7 +1147,21 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 					if c.LocalOverrides.BindAddress > "" {
 						c.SentinelConfig.Host = c.LocalOverrides.BindAddress
 						log.Printf("Local sentinel is listening on IP %s", c.SentinelConfig.Host)
+					} else {
 						if c.Peers == nil {
+							// This means the sentinel config has no bind statement
+							// So we will pull the local IP and use it
+							// I don't like this but dont' have a great option either.
+							myhostname, err := os.Hostname()
+							if err != nil {
+								log.Print(err)
+							}
+							myip, err := net.LookupHost(myhostname)
+							if err != nil {
+								log.Print(err)
+							}
+							c.LocalSentinel.Host = myip[0]
+							log.Printf("NO BIND STATEMENT FOUND. USING: '%s'", c.LocalSentinel.Host)
 							me := "http://" + c.SentinelConfig.Host + ":" + GCPORT
 							c.Peers = groupcache.NewHTTPPool(me)
 							c.PeerList[c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port)] = c.SentinelConfig.Host
