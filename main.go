@@ -114,17 +114,17 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to connect to constellation")
 	}
-	log.Print("Starting refresh ticker")
+	//log.Print("Starting refresh ticker")
 
 	// Try to set to the IP the sentinel is bound do
 	//flag.Set("bind", mc.SentinelConfig.Host+":8000")
 
-	go RefreshData()
-	pm, _ := mc.GetPodMap()
-	for _, pod := range pm {
-		handlers.NodeMaster.AddNode(pod.Master)
-		//for _, node := range pod.Nodes { handlers.NodeMaster.AddNode(&node) }
-	}
+	//go RefreshData()
+	_, _ = mc.GetPodMap()
+	//for _, pod := range pm {
+	//handlers.NodeMaster.AddNode(pod.Master)
+	//for _, node := range pod.Nodes { handlers.NodeMaster.AddNode(&node) }
+	//}
 	mc.IsBalanced()
 	handlers.ManagedConstellation = mc
 	_ = handlers.NewPageContext()

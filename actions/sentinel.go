@@ -23,10 +23,16 @@ type Sentinel struct {
 	Pods           []RedisPod
 	PodsInError    []RedisPod
 	KnownSentinels map[string]*Sentinel
+	DialConfig     client.DialConfig
 }
 
 func (s *Sentinel) GetMasters() (master []client.MasterInfo, err error) {
-	return s.Connection.SentinelMasters()
+	conn, err := client.Dial(s.Host, s.Port)
+	if err != nil {
+		return
+	}
+	defer conn.ClosePool()
+	return conn.SentinelMasters()
 }
 
 func (s *Sentinel) PodCount() int {
@@ -101,12 +107,21 @@ func (s *Sentinel) LoadPods() error {
 
 func (s *Sentinel) DoFailover(podname string) (ok bool, err error) {
 	// Q: Move error handling/reporting to constellation?
-	didFailover, err := s.Connection.SentinelFailover(podname)
+	conn, err := client.Dial(s.Host, s.Port)
+	if err != nil {
+		return
+	}
+	didFailover, err := conn.SentinelFailover(podname)
 	return didFailover, err
 }
 
 func (s *Sentinel) ResetPod(podname string) {
-	err := s.Connection.SentinelReset(podname)
+	conn, err := client.Dial(s.Host, s.Port)
+	if err != nil {
+		return
+	}
+	defer conn.ClosePool()
+	err = conn.SentinelReset(podname)
 	if err != nil {
 		log.Print("Error on reset call for " + podname + " Err=" + err.Error())
 	}
@@ -115,11 +130,21 @@ func (s *Sentinel) ResetPod(podname string) {
 func (s *Sentinel) GetSlaves(podname string) (slaves []client.SlaveInfo, err error) {
 	// TODO: Bubble errors to out custom error package
 	// See DoFailover for an example
-	return s.Connection.SentinelSlaves(podname)
+	conn, err := client.Dial(s.Host, s.Port)
+	if err != nil {
+		return
+	}
+	defer conn.ClosePool()
+	return conn.SentinelSlaves(podname)
 }
 
 func (s *Sentinel) GetSentinels(podname string) (sentinels []*Sentinel, err error) {
-	sinfos, err := s.Connection.SentinelSentinels(podname)
+	conn, err := client.Dial(s.Host, s.Port)
+	if err != nil {
+		return
+	}
+	defer conn.ClosePool()
+	sinfos, err := conn.SentinelSentinels(podname)
 	if err != nil {
 		return sentinels, err
 	}
@@ -131,6 +156,7 @@ func (s *Sentinel) GetSentinels(podname string) (sentinels []*Sentinel, err erro
 			//log.Printf("Unable to connect to sentinel %s. Error reported as '%s'", sent.Name, err.Error())
 			continue
 		}
+		defer conn.ClosePool()
 		sentinel.Connection = conn
 		pm, err := sentinel.Connection.SentinelGetMaster(podname)
 		if err != nil || pm.Port == 0 {
@@ -146,11 +172,20 @@ func (s *Sentinel) GetSentinels(podname string) (sentinels []*Sentinel, err erro
 	return sentinels, nil
 }
 
+func (s *Sentinel) GetConnection() (conn *client.Redis, err error) {
+	conn, err = client.Dial(s.Host, s.Port)
+	return
+}
+
 func (s *Sentinel) GetMaster(podname string) (master client.MasterAddress, err error) {
 	if s.Connection == nil {
 		log.Fatal("s.Connection is nil, connection not initialzed!")
 	}
-	master, err = s.Connection.SentinelGetMaster(podname)
+	conn, err := client.Dial(s.Host, s.Port)
+	if err != nil {
+		return
+	}
+	master, err = conn.SentinelGetMaster(podname)
 	// TODO: THis needs changed to our custom errors package
 	return
 }
@@ -158,12 +193,16 @@ func (s *Sentinel) GetMaster(podname string) (master client.MasterAddress, err e
 func (s *Sentinel) MonitorPod(podname, address string, port, quorum int, auth string) (rp RedisPod, err error) {
 	// TODO: Update to new common and error packages
 	//log.Printf("S:MP-> add called for %s-> %s:%d", podname, address, port)
-	_, err = s.Connection.SentinelMonitor(podname, address, port, quorum)
+	conn, err := client.Dial(s.Host, s.Port)
+	if err != nil {
+		return
+	}
+	_, err = conn.SentinelMonitor(podname, address, port, quorum)
 	if err != nil {
 		return rp, err
 	}
 	if auth > "" {
-		ok := s.Connection.SentinelSetString(podname, "auth-pass", auth)
+		ok := conn.SentinelSetString(podname, "auth-pass", auth)
 		log.Print(ok)
 	}
 	s.LoadPods()
@@ -180,7 +219,11 @@ func (s *Sentinel) MonitorPod(podname, address string, port, quorum int, auth st
 }
 
 func (s *Sentinel) RemovePod(podname string) (ok bool, err error) {
-	_, err = s.Connection.SentinelRemove(podname)
+	conn, err := client.Dial(s.Host, s.Port)
+	if err != nil {
+		return
+	}
+	_, err = conn.SentinelRemove(podname)
 	if err != nil {
 		// convert to custom errors package
 		return false, err
@@ -195,7 +238,11 @@ func (s *Sentinel) GetPods() (pods map[string]RedisPod, err error) {
 
 func (s *Sentinel) GetPod(podname string) (rp RedisPod, err error) {
 	//log.Printf("Sentinel.Getpod called for pod '%s'", podname)
-	mi, err := s.Connection.SentinelMasterInfo(podname)
+	conn, err := client.Dial(s.Host, s.Port)
+	if err != nil {
+		return
+	}
+	mi, err := conn.SentinelMasterInfo(podname)
 	if err != nil {
 		log.Print("S:GetPod failed to get master info. Err:", err)
 		return rp, err

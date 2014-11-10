@@ -47,13 +47,13 @@ func (n *RedisNode) UpdateData() (bool, error) {
 	}
 	dconf := client.DialConfig{Address: n.Name, Password: n.Auth, Network: "tcp"}
 	conn, err := client.DialWithConfig(&dconf)
-	defer conn.ClosePool()
 	if err != nil {
 		log.Print("unable to connect to node. Err:", err)
 		n.LastUpdateValid = false
 		n.LastUpdateDelay = time.Since(n.LastUpdate)
 		return false, err
 	}
+	defer conn.ClosePool()
 	pinged := conn.Ping()
 	if pinged != nil {
 		err = fmt.Errorf("Unable to PING node %s with config %+v. ERROR: %s", n.Name, dconf, pinged)

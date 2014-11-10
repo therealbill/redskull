@@ -224,7 +224,7 @@ func (c *Constellation) StartCache() {
 				dest.SetString(auth)
 				return nil
 			}
-			err := fmt.Errorf("Found no value for auth, not storing anything", pod)
+			err := fmt.Errorf("Found no value for auth on pod %s, not storing anything", pod)
 			return err
 		}))
 	c.AuthCache = NewCache(authcache)
@@ -245,6 +245,7 @@ func (c *Constellation) LoadLocalPods() error {
 	if c.LocalSentinel.Name == "" {
 		log.Print("Initializing LOCAL sentinel")
 		var address string
+		var err error
 		if c.SentinelConfig.Host == "" {
 			log.Print("No Hostname, determining local hostname")
 			myhostname, err := os.Hostname()
@@ -257,12 +258,19 @@ func (c *Constellation) LoadLocalPods() error {
 			}
 			c.LocalSentinel.Host = myip[0]
 			c.SentinelConfig.Host = myip[0]
+			log.Printf("%+v", myip)
 			address = fmt.Sprintf("%s:%d", myip[0], c.SentinelConfig.Port)
 			c.LocalSentinel.Name = address
 			log.Printf("Determined LOCAL address is: %s", address)
 			log.Printf("Determined LOCAL name is: %s", c.LocalSentinel.Name)
+		} else {
+			address = fmt.Sprintf("%s:%d", c.SentinelConfig.Host, c.SentinelConfig.Port)
+			log.Printf("Determined LOCAL address is: %s", address)
+			c.LocalSentinel.Name = address
+			log.Printf("Determined LOCAL name is: %s", c.LocalSentinel.Name)
 		}
-		var err error
+		c.LocalSentinel.Host = c.SentinelConfig.Host
+		c.LocalSentinel.Port = c.SentinelConfig.Port
 		c.LocalSentinel.Connection, err = client.DialWithConfig(&client.DialConfig{Address: address})
 		if err != nil {
 			// Handle error reporting here!
@@ -496,7 +504,13 @@ func (c *Constellation) GetSentinelsForPod(podname string) (sentinels []*Sentine
 	knownSentinels := make(map[string]*Sentinel)
 	var current_sentinels []*Sentinel
 	for _, s := range all_sentinels {
-		reportedSentinels, _ := s.Connection.SentinelSentinels(podname)
+		conn, err := s.GetConnection()
+		if err != nil {
+			log.Printf("Unable to connect to sentinel %s", s.Name)
+			continue
+		}
+		defer conn.ClosePool()
+		reportedSentinels, _ := conn.SentinelSentinels(podname)
 		if len(reportedSentinels) == 0 {
 			log.Printf("Sentinel %s was reported as having pod %s. It doesn't. Pod Needs Reset", s.Name, podname)
 			continue
@@ -664,25 +678,28 @@ func (c *Constellation) AddSentinel(ip string, port int) error {
 		c.SetPeers()
 	}
 	c.PeerList[address] = ip
-	log.Printf("Adding REMOTE Sentinel '%s'", address)
-	conn, err := client.DialWithConfig(&client.DialConfig{Address: address})
-	if err != nil {
-		// Handle error reporting here!
-		err = fmt.Errorf("AddSentinel -> '%s' failed connection attempt", address)
-		c.BadSentinels[address] = &sentinel
-		return err
-	}
-	sentinel.Connection = conn
-	sentinel.Info, _ = sentinel.Connection.SentinelInfo()
 	sentinel.Name = address
 	sentinel.Host = ip
-	_, ok := c.RemoteSentinels[address]
-	if !ok {
+	sentinel.Port = port
+	_, known := c.RemoteSentinels[address]
+	if known {
+		log.Printf("Already have crawled '%s'", sentinel.Name)
+	} else {
+		log.Printf("Adding REMOTE Sentinel '%s'", address)
+		conn, err := client.DialWithConfig(&client.DialConfig{Address: address})
+		if err != nil {
+			// Handle error reporting here!
+			err = fmt.Errorf("AddSentinel -> '%s' failed connection attempt", address)
+			c.BadSentinels[address] = &sentinel
+			return err
+		}
+		sentinel.Connection = conn
+		sentinel.Info, _ = sentinel.Connection.SentinelInfo()
 		if address != c.LocalSentinel.Name {
-			log.Print("discovering pods on sentinel " + sentinel.Name)
+			log.Print("discovering pods on remote sentinel " + sentinel.Name)
 			sentinel.LoadPods()
 			pods, _ := sentinel.GetPods()
-			log.Print("Pods to load: ", len(pods))
+			log.Printf(" %d Pods to load from %s ", len(pods), address)
 			c.RemoteSentinels[address] = &sentinel
 			for _, pod := range pods {
 				if pod.Name == "" {
@@ -691,14 +708,17 @@ func (c *Constellation) AddSentinel(ip string, port int) error {
 				}
 				_, islocal := c.LocalPodMap[pod.Name]
 				if islocal {
+					log.Print("Skipping local pod")
 					continue
 				}
 				_, isremote := c.RemotePodMap[pod.Name]
 				if isremote {
+					log.Print("Skipping known remote pod")
 					continue
 				}
 				log.Print("Adding DISCOVERED remotely managed pod " + pod.Name)
 				c.GetPodAuth(pod.Name)
+				log.Print("Got auth for pod")
 				c.LoadNodesForPod(&pod, &sentinel)
 				newsentinels, _ := sentinel.GetSentinels(pod.Name)
 				pod.SentinelCount = len(newsentinels)
@@ -949,7 +969,13 @@ func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
 	}
 	sentinels, _ := c.GetAllSentinels()
 	for _, s := range sentinels {
-		mi, _ := s.Connection.SentinelMasterInfo(podname)
+		conn, err := s.GetConnection()
+		if err != nil {
+			log.Printf("Unable to connect to sentinel '%s'", s.Name)
+			continue
+		}
+		defer conn.ClosePool()
+		mi, _ := conn.SentinelMasterInfo(podname)
 		if mi.Name == podname {
 			auth := c.GetPodAuth(podname)
 			address := fmt.Sprintf("%s:%d", mi.IP, mi.Port)
@@ -1128,7 +1154,6 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 			case "dir":
 				c.SentinelConfig.Dir = entries[1]
 			case "bind":
-				log.Printf("Local sentinel is listening on IP %s", c.SentinelConfig.Host)
 				if c.LocalOverrides.BindAddress > "" {
 					log.Printf("Overriding Sentinel BIND directive '%s' with '%s'", entries[1], c.LocalOverrides.BindAddress)
 				} else {
@@ -1142,6 +1167,7 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 						c.StartCache()
 					}
 				}
+				log.Printf("Local sentinel is listening on IP %s", c.SentinelConfig.Host)
 			case "":
 				if err == io.EOF {
 					log.Print("File load complete?")
@@ -1184,7 +1210,6 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 			log.Fatal(err)
 		}
 	}
-	return nil
 }
 
 // ResetPod this is the constellation cluster level call to issue a reset
