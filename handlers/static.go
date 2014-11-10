@@ -20,6 +20,7 @@ func Static(c web.C, w http.ResponseWriter, req *http.Request) {
 	root := TemplateBase + STATIC_ROOT
 	if len(static_file) != 0 {
 		f, err := http.Dir(root).Open(static_file)
+		defer f.Close()
 		if err == nil {
 			content := io.ReadSeeker(f)
 			http.ServeContent(w, req, static_file, time.Now(), content)

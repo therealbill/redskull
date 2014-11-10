@@ -21,6 +21,10 @@ import (
 // super-constellation reflecting the evoluton of the constellation term
 var ManagedConstellation *actions.Constellation
 
+// NodeMaster is deprecated. Previously/currently used for storing node
+// connections. It needs refactored to use the constellation-wide node routines
+var NodeMaster = new(actions.NodeStore)
+
 var TemplateBase string
 
 // InfoResponse represents the information returned in an API call

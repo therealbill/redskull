@@ -147,6 +147,9 @@ func (s *Sentinel) GetSentinels(podname string) (sentinels []*Sentinel, err erro
 }
 
 func (s *Sentinel) GetMaster(podname string) (master client.MasterAddress, err error) {
+	if s.Connection == nil {
+		log.Fatal("s.Connection is nil, connection not initialzed!")
+	}
 	master, err = s.Connection.SentinelGetMaster(podname)
 	// TODO: THis needs changed to our custom errors package
 	return
@@ -230,6 +233,7 @@ func (s *Sentinel) GetPodAuthFromConfig(podname string) (string, error) {
 		log.Printf("unable to open '%s'. Err:%s", s.Info.Server.ConfigFile, err.Error())
 		return "", err
 	}
+	defer file.Close()
 	//log.Printf("GetPodAuthFromConfig called, cfg file=%s", s.Info.Server.ConfigFile)
 	bf := bufio.NewReader(file)
 	var lines []string

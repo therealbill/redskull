@@ -140,6 +140,7 @@ func APIAddSlave(c web.C, w http.ResponseWriter, r *http.Request) {
 	reqdata.Podname = target
 	name := fmt.Sprintf("%s:%d", reqdata.SlaveAddress, reqdata.SlavePort)
 	slave_target, err := client.DialWithConfig(&client.DialConfig{Address: name, Password: reqdata.SlaveAuth})
+	defer slave_target.ClosePool()
 	if err != nil {
 		log.Print("ERR: Dialing slave -", err)
 		response.Status = "ERROR"
@@ -218,6 +219,7 @@ func AddSlaveHTMLProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 	res := results{PodName: podname, SlaveName: sname, SlaveAddress: address, SlavePort: port}
 	name := fmt.Sprintf("%s:%d", address, port)
 	slave_target, err := client.DialWithConfig(&client.DialConfig{Address: name, Password: slaveauth})
+	defer slave_target.ClosePool()
 	if err != nil {
 		log.Print("ERR: Dialing slave -", err)
 		context.Data = err

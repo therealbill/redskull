@@ -8,13 +8,8 @@ import (
 	"strconv"
 
 	"github.com/therealbill/libredis/client"
-	"github.com/therealbill/redskull/actions"
 	"github.com/zenazn/goji/web"
 )
-
-// NodeMaster is deprecated. Previously/currently used for storing node
-// connections. It needs refactored to use the constellation-wide node routines
-var NodeMaster = new(actions.NodeStore)
 
 // ShowNodes shows the node listing page
 func ShowNodes(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -97,6 +92,7 @@ func AddNodeHTMLProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 		render(w, context)
 		return
 	}
+	defer nodeconn.ClosePool()
 	_ = nodeconn
 	context.Data = res // wtf, why is this insisting it needs to be a comparison?!
 	render(w, context)

@@ -261,14 +261,15 @@ func (c *Constellation) LoadLocalPods() error {
 			c.LocalSentinel.Name = address
 			log.Printf("Determined LOCAL address is: %s", address)
 			log.Printf("Determined LOCAL name is: %s", c.LocalSentinel.Name)
-			c.LocalSentinel.Connection, err = client.DialWithConfig(&client.DialConfig{Address: address})
-			if err != nil {
-				// Handle error reporting here!
-				//log.Printf("SentinelConfig=%+v", c.SentinelConfig)
-				log.Fatalf("LOCAL Sentinel '%s' failed connection attempt", c.LocalSentinel.Name)
-			}
-			c.LocalSentinel.Info, _ = c.LocalSentinel.Connection.SentinelInfo()
 		}
+		var err error
+		c.LocalSentinel.Connection, err = client.DialWithConfig(&client.DialConfig{Address: address})
+		if err != nil {
+			// Handle error reporting here!
+			//log.Printf("SentinelConfig=%+v", c.SentinelConfig)
+			log.Fatalf("LOCAL Sentinel '%s' failed connection attempt", c.LocalSentinel.Name)
+		}
+		c.LocalSentinel.Info, _ = c.LocalSentinel.Connection.SentinelInfo()
 	}
 	for pname, pconfig := range c.SentinelConfig.ManagedPodConfigs {
 		mi, err := c.LocalSentinel.GetMaster(pname)
@@ -1096,11 +1097,11 @@ func (c *Constellation) extractSentinelDirective(entries []string) error {
 // environment variable "REDSKULL_SENTINELCONFIGFILE"
 func (c *Constellation) LoadSentinelConfigFile() error {
 	file, err := os.Open(c.SentinelConfigName)
-	defer file.Close()
 	if err != nil {
 		log.Print(err)
 		return err
 	}
+	defer file.Close()
 	bf := bufio.NewReader(file)
 	for {
 		rawline, err := bf.ReadString('\n')

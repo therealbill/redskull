@@ -29,6 +29,8 @@ type RedisNode struct {
 	LastUpdate               time.Time
 	LastUpdateValid          bool
 	LastUpdateDelay          time.Duration
+	HasValidAuth             bool
+	Connected                bool
 }
 
 // UpdateData will check if an update is needed, and update if so. It returns a
@@ -45,6 +47,7 @@ func (n *RedisNode) UpdateData() (bool, error) {
 	}
 	dconf := client.DialConfig{Address: n.Name, Password: n.Auth, Network: "tcp"}
 	conn, err := client.DialWithConfig(&dconf)
+	defer conn.ClosePool()
 	if err != nil {
 		log.Print("unable to connect to node. Err:", err)
 		n.LastUpdateValid = false
@@ -170,11 +173,19 @@ type NodeManager interface {
 
 func LoadNodeFromHostPort(ip string, port int, authtoken string) (node *RedisNode, err error) {
 	name := fmt.Sprintf("%s:%d", ip, port)
+	node = &RedisNode{Name: name, Address: ip, Port: port, Auth: authtoken}
+	node.LastUpdateValid = false
+	node.Slaves = make([]*RedisNode, 5)
+
 	conn, err := client.DialWithConfig(&client.DialConfig{Address: name, Password: authtoken, Timeout: 2 * time.Second})
 	if err != nil {
 		log.Printf("Failed connection to %s:%d. Error:%s", ip, port, err.Error())
+		log.Printf("NODE: %+v", node)
 		return node, err
 	}
+	defer conn.ClosePool()
+
+	node.Connected = true
 	nodeInfo, err := conn.Info()
 	if err != nil {
 		log.Printf("WARNING: NODE '%s' was unable to return Info(). Error='%s'", name, err)
@@ -182,14 +193,14 @@ func LoadNodeFromHostPort(ip string, port int, authtoken string) (node *RedisNod
 	if nodeInfo.Server.Version == "" {
 		log.Printf("WARNING: NODE '%s' was unable to return Info(). Error=NONE", name)
 	}
-
-	node = &RedisNode{Name: name, Address: ip, Port: port, Info: nodeInfo, Auth: authtoken}
-	node.LastUpdateValid = false
+	node.HasValidAuth = true
 	_, err = node.UpdateData()
 	if err != nil {
 		log.Printf("Node %s has invalid state. Err from UpdateData call: %s", node.Name, err)
 		return node, err
 	}
+	node.Info = nodeInfo
+	//log.Printf("node: %+v", node)
 	return node, nil
 }
 

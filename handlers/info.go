@@ -23,6 +23,7 @@ func Info(c web.C, w http.ResponseWriter, r *http.Request) {
 		response.StatusMessage = "Unable to connect to specified Redis instance"
 		fmt.Fprint(w, response)
 	} else {
+		defer conn.ClosePool()
 		info, err := conn.Info()
 		if err != nil {
 			response.Status = "COMMANDERROR"
