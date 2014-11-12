@@ -31,6 +31,13 @@ type RedisNode struct {
 	LastUpdateDelay          time.Duration
 	HasValidAuth             bool
 	Connected                bool
+	LatencyHistory           client.LatencyHistory
+	LatencyThreshold         int
+	LatencyDoctor            string
+	LatencyMonitoringEnabled bool
+	SlowLogThreshold         int64
+	SlowLogLength            int64
+	SlowLogRecords           []*client.SlowLog
 }
 
 // UpdateData will check if an update is needed, and update if so. It returns a
@@ -104,6 +111,26 @@ func (n *RedisNode) UpdateData() (bool, error) {
 			n.MemoryUseWarn = true
 		}
 	}
+
+	// Pull Latency data
+	res, _ = conn.ConfigGet("latency-monitor-threshold")
+	n.LatencyThreshold, err = strconv.Atoi(res["latency-monitor-threshold"])
+	if err == nil && n.LatencyThreshold > 0 {
+		n.LatencyHistory, _ = conn.LatencyHistory("command")
+		n.LatencyDoctor, _ = conn.LatencyDoctor()
+		n.LatencyMonitoringEnabled = true
+	}
+
+	// Pull slowlog data
+	res, _ = conn.ConfigGet("slowlog-log-slower-than")
+	n.SlowLogThreshold, err = strconv.ParseInt(res["slowlog-log-slower-than"], 0, 64)
+	n.SlowLogLength, _ = conn.SlowLogLen()
+	n.SlowLogRecords, _ = conn.SlowLogGet(n.SlowLogLength)
+	log.Printf("Slowlog: %+v", n.SlowLogRecords)
+	for _, r := range n.SlowLogRecords {
+		log.Printf("slow: %+v", r)
+	}
+
 	var slavenodes []*RedisNode
 	for _, slave := range n.Info.Replication.Slaves {
 		snode, err := LoadNodeFromHostPort(slave.IP, slave.Port, n.Auth)

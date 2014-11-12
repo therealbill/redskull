@@ -88,6 +88,20 @@ func CommifyFloat(bytes float64) string {
 	return res
 }
 
+// HumanizeSlowlog is used to convert Redis' calls stats to something humans
+// can easily read. This means converting microseconds to milliseconds where
+// appropriate, adding commas, and hopefully soon upconverting to seconds,
+// minutes, hours, days, etc. where approriate
+func HumanizeSlowlog(micros int64) (res string) {
+	nt := micros / 1000.0
+	if nt > 1 {
+		res = fmt.Sprintf("%s milliseconds", humanize.Comma(int64(nt)))
+	} else {
+		res = fmt.Sprintf("%d microseconds", micros)
+	}
+	return res
+}
+
 // HumanizeCallStats is used to convert Redis' calls stats to something humans
 // can easily read. This means converting microseconds to milliseconds where
 // appropriate, adding commas, and hopefully soon upconverting to seconds,
@@ -131,6 +145,7 @@ func render(w http.ResponseWriter, context PageContext) {
 		"Float2Int":         IntFromFloat64,
 		"OkToBool":          OkToBool,
 		"HumanizeCallStats": HumanizeCallStats,
+		"HumanizeSlowlog":   HumanizeSlowlog,
 		"tableflip":         func() string { return "(╯°□°）╯︵ ┻━┻" },
 	}
 	context.Static = STATIC_URL

@@ -15,6 +15,7 @@ type ErrorMetrics struct {
 	NoValidSlave     int
 	InvalidAuth      int
 	TotalErrorPods   int
+	ConnectionError  int
 }
 
 // Dashboard shows the dashboard
@@ -43,14 +44,13 @@ func Dashboard(c web.C, w http.ResponseWriter, r *http.Request) {
 			emet.NoQuorum++
 		}
 		if pod.Master == nil {
-			emet.NoValidSlave++
+			emet.ConnectionError++
 		} else {
-			if pod.Master.Info.Replication.ConnectedSlaves == 0 || len(pod.Master.Slaves) == 0 || !pod.HasValidSlaves {
+			if !pod.Master.HasValidAuth || !pod.ValidAuth {
+				emet.InvalidAuth++
+			} else if pod.Master.Info.Replication.ConnectedSlaves == 0 || len(pod.Master.Slaves) == 0 || !pod.HasValidSlaves {
 				emet.NoValidSlave++
 			}
-		}
-		if !pod.HasInfo && !pod.ValidAuth {
-			emet.InvalidAuth++
 		}
 	}
 	context.Data = emet

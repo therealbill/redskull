@@ -48,8 +48,13 @@ func AddNode(c web.C, w http.ResponseWriter, r *http.Request) {
 // GetNodeJSON returns the JSON output of the data known about a node
 func GetNodeJSON(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["name"]
-	node := NodeMaster.GetNode(target)
+	//node := NodeMaster.GetNode(target)
+	context := NewPageContext()
+	podname := context.Constellation.NodeNameToPodMap[target]
+	log.Printf("Getting node for pod: %s", podname)
+	node, _ := context.Constellation.GetNode(target, podname, "")
 	response := InfoResponse{Status: "COMPLETE", StatusMessage: "Pod Info Retrieved", Data: node}
+	log.Printf("[%s]: %+v", target, node)
 	packed, _ := json.Marshal(response)
 	w.Write(packed)
 }

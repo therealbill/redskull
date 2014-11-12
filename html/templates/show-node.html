@@ -10,16 +10,8 @@
 				<li><a href="#tab_3" data-toggle="tab">Replication</a></li>
 				<li><a href="#tab_4" data-toggle="tab">Command Stats</a></li>
 				<li><a href="#tab_5" data-toggle="tab">Persistence</a></li>
-				<li class="dropdown">
-					<a class="dropdown-toggle" data-toggle="dropdown" href="#"> Dropdown <span class="caret">&nbsp;</span> </a>
-					<ul class="dropdown-menu">
-						<li role="presentation"><a data-toggle="tab" tabindex="1" href="#tab_1">Node Information</a></li>
-						<li role="presentation"><a data-toggle="tab" tabindex="2" href="#tab_2">Memory</a></li>
-						<li role="presentation"><a data-toggle="tab" tabindex="3" href="#tab_3">Replication</a></li>
-						<li role="presentation"><a data-toggle="tab" tabindex="4" href="#tab_4">Command Stats</a></li>
-						<li role="presentation"><a data-toggle="tab" tabindex="5" href="#tab_5">Persistence</a></li>
-					</ul>
-				</li>
+				<li><a href="#tab_6" data-toggle="tab">Latency</a></li>
+				<li><a href="#tab_7" data-toggle="tab">Slow Log</a></li>
 				<li class="pull-right"><a href="#" class="text-muted"><i class="fa fa-gear">&nbsp; </i></a></li>
 			</ul>
 			<!-- tabs -->
@@ -261,9 +253,123 @@
 							</dl>
 					</div>
 				</div><!-- /.tab-pane -->
+				<!-- Latency -->
+				<div class="tab-pane" id="tab_6">
+					<div class="row">
+						<h2> Latency Monitoring</h2>
+							<dl class="dl-horizontal">
+								<dt>Enabled</dt>
+								<dd>
+								{{if .Node.LatencyMonitoringEnabled}}
+								Yes
+								{{else}}
+								No
+								{{end}}
+								</dd>
+								<dt>Latency Threshold</dt>
+								<dd>
+								{{.Node.LatencyThreshold}}
+								</dd>
+							</dl>
+							{{if .Node.LatencyMonitoringEnabled}}
+							<h2> Latency Doctor </h2>
+							<pre>{{.Node.LatencyDoctor}}</pre>
+							{{end}}
+					</div>
+						<div class="row">
+							<div class="box">
+								<div class="box-header">
+									<h3 class="box-title">Command Latency Events </h3>
+								</div><!-- /.box-header -->
+								<div class="box-body table-responsive no-padding">
+									<table class="table table-hover" width="98%">
+										<tr>
+											<th> Timestamp</th>
+											<th> Latency in Milliseconds</th>
+										</tr>
+										{{range .Node.LatencyHistory.Records }}
+										<tr>
+											<td> {{.Timestamp}} </td>
+											<td> {{.Milliseconds}} milliseconds </td>
+										</tr>
+										{{end}}
+									</table>
+								</div><!-- /.box-body -->
+							</div><!-- /.box -->
+						</div><!-- /.row (slave table row) -->
+				</div><!-- /.tab-pane -->
+				<!-- Slow Log -->
+				<div class="tab-pane" id="tab_7">
+					<div class="row">
+						<h2> SlowLog Monitoring</h2>
+							<dl class="dl-horizontal">
+								<dt>Slowlog Threshold</dt>
+								<dd> {{.Node.SlowLogThreshold}} </dd>
+								<dt>Slowlog Record Count</dt>
+								<dd> {{.Node.SlowLogLength}} </dd>
+							</dl>
+					</div>
+						<div class="row">
+							<div class="box">
+								<div class="box-header">
+									<h3 class="box-title">Command Latency Events </h3>
+								</div><!-- /.box-header -->
+								<div class="box-body table-responsive no-padding">
+									<table class="table table-bordered table-striped" id="slowlog-table" width="98%">
+										<thead>
+										<tr>
+											<th> ID </th>
+											<th> Timestamp</th>
+											<th> Event Time </th>
+											<th> Command </th>
+										</tr>
+										</thead>
+										<tbody>
+										{{range .Node.SlowLogRecords }}
+										<tr>
+											<td> {{.ID}} </td>
+											<td> {{.Timestamp}} </td>
+											<td>{{HumanizeSlowlog .Microseconds}} </td>
+											<td> {{range .Command }} {{.}} {{end}} </td>
+										</tr>
+										{{end}}
+										</tbody>
+										<tfoot>
+										<tr>
+											<th> ID </th>
+											<th> Timestamp</th>
+											<th> Event Time </th>
+											<th> Command </th>
+										</tr>
+										</tfoot>
+									</table>
+								</div><!-- /.box-body -->
+							</div><!-- /.box -->
+						</div><!-- /.row (slave table row) -->
+				</div><!-- /.tab-pane -->
 			</div><!-- /.tab-content -->
 		</div><!-- nav-tabs-custom -->
 	</div><!-- /.col -->
 </div>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+
+<script src="/static/js/plugins/datatables/jquery.dataTables.js" type="text/javascript"></script>
+<script src="/static/js/plugins/datatables/dataTables.bootstrap.js" type="text/javascript"></script>
+<script type="text/javascript">
+        $('#slowlog-table').dataTable({
+            "bPaginate": true,
+            "bLengthChange": true,
+            "bFilter": false,
+            "bSort": true,
+            "bInfo": true,
+            "bAutoWidth": true,
+            "bProcessing": true,
+            "bStateSave": true,
+            "bOrdering": true,
+            "bOrder": [[1,'asc']]
+        }).order([1,'desc'] ).draw();
+</script>
+
 
 {{end}}

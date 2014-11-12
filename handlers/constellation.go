@@ -249,6 +249,7 @@ func APIGetPod(c web.C, w http.ResponseWriter, r *http.Request) {
 		response InfoResponse
 	)
 	podname := c.URLParams["podName"]
+	log.Print("pulling API for pod " + podname)
 	if podname == "" {
 		err := fmt.Errorf("API:GP called w/o a pod??")
 		log.Print("API:GP Error:", err)
@@ -258,6 +259,7 @@ func APIGetPod(c web.C, w http.ResponseWriter, r *http.Request) {
 		pod, err := ManagedConstellation.GetPod(podname)
 		if pod.Name > "" {
 			response.Status = "COMPLETE"
+			log.Printf("Pod data: %+v", pod)
 			response.Data = pod
 		} else {
 			log.Print("API:GP Error:", err)
@@ -270,5 +272,6 @@ func APIGetPod(c web.C, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Print("Unable to pack JSON, err:", err)
 	}
+	log.Print(packed)
 	w.Write(packed)
 }
