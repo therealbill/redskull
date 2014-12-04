@@ -53,6 +53,7 @@ func GetNodeJSON(c web.C, w http.ResponseWriter, r *http.Request) {
 	podname := context.Constellation.NodeNameToPodMap[target]
 	log.Printf("Getting node for pod: %s", podname)
 	node, _ := context.Constellation.GetNode(target, podname, "")
+	node.UpdateData()
 	response := InfoResponse{Status: "COMPLETE", StatusMessage: "Pod Info Retrieved", Data: node}
 	log.Printf("[%s]: %+v", target, node)
 	packed, _ := json.Marshal(response)
