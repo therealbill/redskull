@@ -21,11 +21,15 @@ In addition to the front end Red Skull provides an HTTP/JSON REST-*like*
 interface for interacting with programmaticly. Adding the redis Sentinel
 API as another interface is planned as well.
 
+# Better Documentation
+
+You can find better guides to redskull at [Redskull.IO](http://redskull.io).
+
 
 # Current State
 
 The initial import is of the base working code. It still likely has many
-bugs as it is the result of only ~2.5 total weeks of effort and there
+bugs as it is the result of only ~3-4 total weeks of effort and there
 are still much error handling to be written.  That said, the base
 functionality is there and working.
 
@@ -35,7 +39,8 @@ contribution guidelines; and the direction and needs for it's
 advancement.
 
 Can you use it for "production use". Yes. Will it destroy your setup?
-Not likely. 
+Not likely.  Some of the truly destructive things are disabled, even. Yup, a
+bit paranoid sometimes. :)
 
 Most of the things you can do in the web UI are also available in the
 JSON+HTTP API but there may be some new functionality I've not yet added
@@ -84,6 +89,9 @@ go build
 ./redskull
 ```
 
+There is also a Makefile now. Targets are "redskull" "dist-tar", and
+"docker-image".
+
 # Running Red Skull
 
 Red Skull expects to find the sentinel config file in
@@ -91,12 +99,11 @@ Red Skull expects to find the sentinel config file in
 the environment variable REDSKULL_SENTINELCONFIGFILE.
 
 RS currently expects the html directory to be in the same location as
-the binary. For example you can do create  adirectory named
-`/usr/local/redskull`, place the redskull binary in it, and copy the
+the binary. For example you can do create a directory named
+`/usr/redskull`, place the redskull binary in it, and copy the
 html directory to it, then launch `./redskull` and it should work.
-You'll find it running on port 8000
-
-I'll be making locations configurable soon.
+You'll find it running on port 8000, Alternatively you can configure the
+location of the HTML directory via `REDSKULL_TEMPLATEDIRECTORY`,
 
 
 # Calling the API
