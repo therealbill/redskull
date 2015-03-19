@@ -21,6 +21,11 @@ docker-image: redskull
 	@echo "Hope you have docker setup and have access ;)"
 	docker build -t redskull .
 
+docker-nolocalgo:
+	@echo using centurylink/golang-builder to build docker container
+	docker pull centurylink/golang-builder 
+	docker run --rm -v ${PWD}:/src -v /var/run/docker.sock:/var/run/docker.sock  centurylink/golang-builder
+
 
 .PHONY: clean
 clean:
