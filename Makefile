@@ -20,3 +20,8 @@ dist-tar:  redskull
 docker-image: redskull
 	@echo Hope you have docker setup and have access ;)
 	docker build -t redskull .
+
+
+.PHONY: clean
+clean:
+	@rm -f redskull

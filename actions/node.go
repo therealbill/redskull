@@ -41,6 +41,8 @@ type RedisNode struct {
 	SlowLogRecords            []*client.SlowLog
 }
 
+var NodeRefreshInterval float64
+
 // UpdateData will check if an update is needed, and update if so. It returns a
 // boolean indicating if an update was done and an err.
 func (n *RedisNode) UpdateData() (bool, error) {
@@ -48,7 +50,7 @@ func (n *RedisNode) UpdateData() (bool, error) {
 	// don't bother.
 	if n.LastUpdateValid {
 		elapsed := time.Since(n.LastUpdate)
-		if elapsed.Seconds() < 90 {
+		if elapsed.Seconds() < NodeRefreshInterval {
 			n.LastUpdateDelay = time.Since(n.LastUpdate)
 			return false, nil
 		}

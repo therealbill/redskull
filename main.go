@@ -54,6 +54,7 @@ type LaunchConfig struct {
 	BindAddress         string
 	SentinelHostAddress string
 	TemplateDirectory   string
+	NodeRefreshInterval float64
 }
 
 var config LaunchConfig
@@ -63,6 +64,10 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if config.NodeRefreshInterval == 0 {
+		config.NodeRefreshInterval = 60
+	}
+	actions.NodeRefreshInterval = config.NodeRefreshInterval
 
 	log.Printf("Launch Config: %+v", config)
 	if config.BindAddress > "" {
