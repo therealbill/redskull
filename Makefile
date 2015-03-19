@@ -18,7 +18,7 @@ dist-tar:  redskull
 	@echo Your distribution tarball is redskull-$(NOW).tar.gz
 
 docker-image: redskull
-	@echo Hope you have docker setup and have access ;)
+	@echo "Hope you have docker setup and have access ;)"
 	docker build -t redskull .
 
 
