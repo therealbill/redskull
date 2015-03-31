@@ -1,4 +1,4 @@
-package main // import "github.com/therealbill/redskull"
+package main // import "github.com/TheRealBill/redskull"
 
 import (
 	"flag"
