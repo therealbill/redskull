@@ -5,6 +5,8 @@
 NOW := $(shell date +"%s" )
 
 redskull:
+	@echo Pulling dependencies
+	@go get ./...
 	@echo building redskull binary
 	@go vet
 	@go build
