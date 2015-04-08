@@ -1,6 +1,7 @@
 package main // import "github.com/therealbill/redskull"
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -100,6 +101,9 @@ func init() {
 		config.GroupName = "redskull:1"
 		log.Print("ENV contained no GroupName, using default:" + config.GroupName)
 	}
+
+	config_json, _ := json.Marshal(config)
+	log.Printf("Config: %s", config_json)
 
 	key = os.Getenv("AIRBRAKE_API_KEY")
 	airbrake.Endpoint = "https://api.airbrake.io/notifier_api/v2/notices"
