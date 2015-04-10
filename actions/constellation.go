@@ -48,6 +48,8 @@ type Constellation struct {
 	LocalPodMap         map[string]*RedisPod
 	RemotePodMap        map[string]*RedisPod
 	PodsInError         []*RedisPod
+	NumErrorPods        int
+	LastErrorCheck      time.Time
 	Connected           bool
 	RemoteSentinels     map[string]*Sentinel
 	BadSentinels        map[string]*Sentinel
@@ -83,6 +85,7 @@ func GetConstellation(name, cfg, group, sentinelAddress string) (*Constellation,
 	con.RemoteSentinels = make(map[string]*Sentinel)
 	con.BadSentinels = make(map[string]*Sentinel)
 	con.PodAuthMap = make(map[string]string)
+	con.PodMap = make(map[string]*RedisPod)
 	con.LocalPodMap = make(map[string]*RedisPod)
 	con.RemotePodMap = make(map[string]*RedisPod)
 	con.NodeMap = make(map[string]*RedisNode)
@@ -97,13 +100,13 @@ func GetConstellation(name, cfg, group, sentinelAddress string) (*Constellation,
 	con.LoadRemoteSentinels()
 	con.Balanced = true
 	con.PeerList = make(map[string]string)
-	log.Printf("Metrics: %+v", con.GetStats())
+	//log.Printf("Metrics: %+v", con.GetStats())
 	return &con, nil
 }
 
 // ConstellationStats holds mtrics about the constellation. As the
 // Constellation term is undergoing a change, this will also need to change to
-// reflect the new terminalogy.
+// reflect the new terminology.
 // As soon as it is determined
 type ConstellationStats struct {
 	PodCount        int
@@ -121,7 +124,7 @@ func (c *Constellation) GetStats() ConstellationStats {
 	// first: pod crawling
 	var metrics ConstellationStats
 	metrics.PodSizes = make(map[int64]int64)
-	pmap, _ := c.GetPodMap()
+	pmap := c.PodMap
 	metrics.PodCount = len(pmap)
 	metrics.SentinelCount = len(c.RemoteSentinels) + 1
 
@@ -140,11 +143,16 @@ func (c *Constellation) GetStats() ConstellationStats {
 				metrics.NodeCount++
 				metrics.TotalNodeMemory += int64(slave.MaxMemory)
 			}
+			podmem := int64(master.MaxMemory)
+			metrics.TotalPodMemory += podmem
+			metrics.TotalNodeMemory += int64(podmem)
+			metrics.PodSizes[podmem]++
+		} else {
+			podmem := int64(master.MaxMemory)
+			metrics.TotalPodMemory += podmem
+			metrics.TotalNodeMemory += int64(podmem)
+			metrics.PodSizes[podmem]++
 		}
-		podmem := int64(master.MaxMemory)
-		metrics.TotalPodMemory += podmem
-		metrics.TotalNodeMemory += int64(podmem)
-		metrics.PodSizes[podmem]++
 	}
 	log.Printf("Metrics: %+v", metrics)
 	c.Metrics = metrics
@@ -155,20 +163,26 @@ func (c *Constellation) GetStats() ConstellationStats {
 // It also attempts to determine dynamic data such as sentinels and booleans
 // like CanFailover
 func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, err error) {
+	if c.NodeMap == nil {
+		log.Fatal("c.NodeMap is not initialized. wtf?!")
+	}
 	node, exists := c.NodeMap[name]
 	if exists {
-		if node.LastUpdateValid {
-			node.UpdateData()
-			c.NodeMap[name] = node
-			return node, nil
-		}
+		log.Print("Have node, calling Update")
 		didUpdate, err := node.UpdateData()
 		if err != nil {
 			log.Print("ERROR in GetNode:Update -> ", err)
+			// somehow I need to find a good way to bubble up this error as it usually means bad auth
 			return node, err
 		}
 		if !didUpdate {
 			log.Print("Update not needed, data still fresh")
+		}
+		if c.NodeMap == nil {
+			c.NodeMap = make(map[string]*RedisNode)
+		}
+		if c.NodeNameToPodMap == nil {
+			c.NodeNameToPodMap = make(map[string]string)
 		}
 		c.NodeMap[name] = node
 		c.NodeNameToPodMap[name] = podname
@@ -183,21 +197,21 @@ func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, er
 		log.Print("Unable to determine connection info. Err:", err)
 		return
 	}
-	dnode, err := LoadNodeFromHostPort(host, port, auth)
+	node, err = LoadNodeFromHostPort(host, port, auth)
 	if err != nil {
 		log.Print("Unable to obtain connection . Err:", err)
 		return
 	}
-	c.NodeMap[name] = dnode
-	node = dnode
-	return node, nil
+	c.NodeMap[name] = node
+	return
 }
 
 // GetPodAuth will return an authstring from the local config and/or the
 // groupcache group if it is in there. This probably still needs a bit of work
 // to be reliable enough for me.
 func (c *Constellation) GetPodAuth(podname string) string {
-	return c.AuthCache.Get(podname)
+	return c.PodAuthMap[podname]
+	//return c.AuthCache.Get(podname)
 }
 
 // StartCache is used to start up the groupcache mechanism
@@ -241,6 +255,9 @@ func (c *Constellation) LoadLocalPods() error {
 	if c.RemotePodMap == nil {
 		c.RemotePodMap = make(map[string]*RedisPod)
 	}
+	if c.PodMap == nil {
+		c.PodMap = make(map[string]*RedisPod)
+	}
 	// Initialize local sentinel
 	if c.LocalSentinel.Name == "" {
 		log.Print("Initializing LOCAL sentinel")
@@ -279,6 +296,9 @@ func (c *Constellation) LoadLocalPods() error {
 		}
 		c.LocalSentinel.Info, _ = c.LocalSentinel.Connection.SentinelInfo()
 	}
+	log.Print("INitial iteration through ManagedPodConfigs")
+	local_config_count := len(c.SentinelConfig.ManagedPodConfigs)
+	ctr := 0
 	for pname, pconfig := range c.SentinelConfig.ManagedPodConfigs {
 		mi, err := c.LocalSentinel.GetMaster(pname)
 		if err != nil {
@@ -286,16 +306,35 @@ func (c *Constellation) LoadLocalPods() error {
 			continue
 		}
 		address := fmt.Sprintf("%s:%d", mi.Host, mi.Port)
-		_, err = c.GetNode(address, pname, pconfig.AuthToken)
+		pod, err := c.LocalSentinel.GetPod(pname)
+		master, err := c.GetNode(address, pname, pconfig.AuthToken)
+		//c.GetNode(address, pname, pconfig.AuthToken)
 		if err != nil {
 			log.Printf("Was unable to get node '%s' for pod '%s' with auth '%s'", address, pname, pconfig.AuthToken)
+			if strings.Contains(err.Error(), "password") {
+				log.Print("marking pod/node auth invalid")
+				master.HasValidAuth = false
+				pod.ValidAuth = false
+			}
+		} else {
+			pod.ValidAuth = true
+			master.HasValidAuth = true
 		}
-		pod, err := c.LocalSentinel.GetPod(pname)
 		if err != nil {
 			log.Printf("ERROR: No pod found on LOCAL sentinel for %s", pname)
 		}
+		if c.PodMap == nil {
+			c.PodMap = make(map[string]*RedisPod)
+		}
+		if c.LocalPodMap == nil {
+			c.LocalPodMap = make(map[string]*RedisPod)
+		}
+		pod.Master = master
+		c.PodMap[pod.Name] = &pod
 		c.LocalPodMap[pod.Name] = &pod
 		c.LoadNodesForPod(&pod, &c.LocalSentinel)
+		ctr++
+		log.Printf("Loaded %d of %d cofnigured local pods", ctr, local_config_count)
 	}
 
 	log.Print("Done with LocalSentinel initialization")
@@ -512,7 +551,7 @@ func (c *Constellation) GetSentinelsForPod(podname string) (sentinels []*Sentine
 		defer conn.ClosePool()
 		reportedSentinels, _ := conn.SentinelSentinels(podname)
 		if len(reportedSentinels) == 0 {
-			log.Printf("Sentinel %s was reported as having pod %s. It doesn't. Pod Needs Reset", s.Name, podname)
+			log.Printf("Sentinel %s was reported as having pod %s. It doesn't. Pod Needs Reset. This can also occur if the master is non-responsive and there are no known slaes for the master.", s.Name, podname)
 			continue
 		}
 		slist, err := s.GetSentinels(podname)
@@ -708,12 +747,10 @@ func (c *Constellation) AddSentinel(ip string, port int) error {
 				}
 				_, islocal := c.LocalPodMap[pod.Name]
 				if islocal {
-					log.Print("Skipping local pod")
 					continue
 				}
 				_, isremote := c.RemotePodMap[pod.Name]
 				if isremote {
-					log.Print("Skipping known remote pod")
 					continue
 				}
 				log.Print("Adding DISCOVERED remotely managed pod " + pod.Name)
@@ -752,7 +789,10 @@ func (c *Constellation) LoadNodesForPod(pod *RedisPod, sentinel *Sentinel) {
 	node, err := c.GetNode(address, pod.Name, pod.AuthToken)
 	if err != nil {
 		log.Printf("Was unable to get node '%s' for pod '%s' with auth '%s'", address, pod.Name, pod.AuthToken)
-		pod.ValidAuth = false
+		if strings.Contains(err.Error(), "password") {
+			log.Print("marking auth invalid")
+			pod.ValidAuth = false
+		}
 		return
 	}
 	slaves := node.Slaves
@@ -787,20 +827,22 @@ func (c *Constellation) LoadRemotePods() error {
 		log.Println(err)
 		return err
 	}
-	for _, sentinel := range c.RemoteSentinels {
+	for si, sentinel := range c.RemoteSentinels {
+		log.Printf("Loading remote pods on sentinel % of %", si, len(c.RemoteSentinels))
 		if sentinel.Name != c.LocalSentinel.Name {
 			pods, err := sentinel.GetPods()
 			if err != nil {
 				log.Print("C:LP-> sentinel error:", err)
 				continue
 			}
-			for _, pod := range pods {
-				if pod.Name == "" {
-					log.Print("WUT: Have a nameless pod. This is probably a bug.")
+			for i, pod := range pods {
+				_, exists := c.PodMap[pod.Name]
+				if exists {
 					continue
 				}
-				_, islocal := c.LocalPodMap[pod.Name]
-				if islocal {
+				log.Printf("loading pod %d of %s", i, len(pods))
+				if pod.Name == "" {
+					log.Print("WUT: Have a nameless pod. This is probably a bug.")
 					continue
 				}
 				_, err := sentinel.GetSentinels(pod.Name)
@@ -810,6 +852,7 @@ func (c *Constellation) LoadRemotePods() error {
 					podauth := c.GetPodAuth(pod.Name)
 					pod.AuthToken = podauth
 					c.RemotePodMap[pod.Name] = &pod
+					c.PodMap[pod.Name] = &pod
 				}
 			}
 		}
@@ -829,7 +872,8 @@ func (c *Constellation) GetAnySentinel() (sentinel Sentinel, err error) {
 // TODO: this needs to be "cloned" to a HasPodsInWarningState when that
 // refoctoring takes place.
 func (c *Constellation) HasPodsInErrorState() bool {
-	if c.ErrorPodCount() > 0 {
+	c.NumErrorPods = c.ErrorPodCount()
+	if c.NumErrorPods > 0 {
 		return true
 	}
 	return false
@@ -837,31 +881,44 @@ func (c *Constellation) HasPodsInErrorState() bool {
 
 // ErrorPodCount returns the number of pods currently reporting errors
 func (c *Constellation) ErrorPodCount() (count int) {
+	log.Print("ErrorPodCount called")
+	if time.Since(c.LastErrorCheck) < (10 * time.Second) {
+		log.Print("short interval, not refreshing data")
+		return c.NumErrorPods
+	}
+	log.Print("ErrorPodCount calling full check")
 	var epods []*RedisPod
 	errormap := make(map[string]*RedisPod)
-	for _, pod := range c.LocalPodMap {
-		if pod.HasErrors() {
-			errormap[pod.Name] = pod
+	cleanmap := make(map[string]*RedisPod)
+	for _, pod := range c.PodMap {
+		_, inerror := errormap[pod.Name]
+		_, clean := cleanmap[pod.Name]
+		if clean || inerror {
+			log.Printf("Pod %s is being checked for errors again..skipping", pod.Name)
+			continue
 		}
-	}
-	for _, pod := range c.RemotePodMap {
-		_, islocal := c.LocalPodMap[pod.Name]
-		if !islocal {
-			if pod.HasErrors() {
-				errormap[pod.Name] = pod
-			}
+		log.Printf("ErrorPodCount checking pod %s", pod.Name)
+		if pod.HasErrors() {
+			log.Printf("pod %s has errors", pod.Name)
+			errormap[pod.Name] = pod
+			continue
+		} else {
+			cleanmap[pod.Name] = pod
 		}
 	}
 	for _, pod := range errormap {
 		epods = append(epods, pod)
 	}
 	c.PodsInError = epods
-	return len(epods)
+	c.LastErrorCheck = time.Now()
+	c.NumErrorPods = len(epods)
+	return c.NumErrorPods
 }
 
 // GetPodsInError is used to get the list of pods currently reporting
 // errors
 func (c *Constellation) GetPodsInError() (errors []*RedisPod) {
+	log.Print("GetPodsInError called")
 	c.ErrorPodCount()
 	return c.PodsInError
 }
@@ -952,6 +1009,7 @@ func (c *Constellation) GetMaster(podname string) (master client.MasterAddress, 
 // GetPod returns a *RedisPod instance for the given podname
 func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
 	pod, islocal := c.LocalPodMap[podname]
+
 	if islocal {
 		spod, err := c.LocalSentinel.GetPod(podname)
 		address := fmt.Sprintf("%s:%d", spod.Info.IP, spod.Info.Port)
@@ -965,7 +1023,11 @@ func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
 		c.LoadNodesForPod(pod, &c.LocalSentinel)
 		pod = &spod
 		c.LocalPodMap[podname] = pod
+		c.PodMap[podname] = pod
 		return pod, err
+	}
+	if pod.Master != nil {
+		return pod, nil
 	}
 	sentinels, _ := c.GetAllSentinels()
 	for _, s := range sentinels {

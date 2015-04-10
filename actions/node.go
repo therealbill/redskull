@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -42,12 +43,21 @@ type RedisNode struct {
 }
 
 var NodeRefreshInterval float64
+var NodesMap map[string]*RedisNode
+var DialTimeout time.Duration = 900 * time.Millisecond
+
+func init() {
+	NodesMap = make(map[string]*RedisNode)
+}
 
 // UpdateData will check if an update is needed, and update if so. It returns a
 // boolean indicating if an update was done and an err.
 func (n *RedisNode) UpdateData() (bool, error) {
 	// If the last update was successful and it has been less than 10 seconds,
 	// don't bother.
+	if n == nil {
+		log.Fatal("WTF?! a nill node?")
+	}
 	if n.LastUpdateValid {
 		elapsed := time.Since(n.LastUpdate)
 		if elapsed.Seconds() < NodeRefreshInterval {
@@ -55,8 +65,9 @@ func (n *RedisNode) UpdateData() (bool, error) {
 			return false, nil
 		}
 	}
-	dconf := client.DialConfig{Address: n.Name, Password: n.Auth, Network: "tcp"}
+	dconf := client.DialConfig{Address: n.Name, Password: n.Auth, Network: "tcp", Timeout: DialTimeout}
 	conn, err := client.DialWithConfig(&dconf)
+	//deadline := time.Now().Add(DialTimeout)
 	if err != nil {
 		log.Print("unable to connect to node. Err:", err)
 		n.LastUpdateValid = false
@@ -64,13 +75,15 @@ func (n *RedisNode) UpdateData() (bool, error) {
 		return false, err
 	}
 	defer conn.ClosePool()
-	pinged := conn.Ping()
-	if pinged != nil {
-		err = fmt.Errorf("Unable to PING node %s with config %+v. ERROR: %s", n.Name, dconf, pinged)
-		n.LastUpdateValid = false
-		n.LastUpdateDelay = time.Since(n.LastUpdate)
-		return false, err
-	}
+	/*
+		pinged := conn.Ping()
+		if pinged != nil {
+			err = fmt.Errorf("Unable to PING node %s with config %+v. ERROR: %s", n.Name, dconf, pinged)
+			n.LastUpdateValid = false
+			n.LastUpdateDelay = time.Since(n.LastUpdate)
+			return false, err
+		}
+	*/
 	nodeinfo, err := conn.Info()
 	if err != nil {
 		log.Print("Info error on node. Err:", err)
@@ -78,12 +91,12 @@ func (n *RedisNode) UpdateData() (bool, error) {
 		n.LastUpdateDelay = time.Since(n.LastUpdate)
 		return false, err
 	}
+	n.LastUpdate = time.Now()
 	if nodeinfo.Server.Version == "" {
 		log.Print("WARNING: Unable to get INFO or node!")
-		log.Printf("Pulled: %+v", nodeinfo)
 		n.LastUpdateValid = false
 		n.LastUpdateDelay = time.Since(n.LastUpdate)
-		return false, fmt.Errorf("Info() was blank, no errors")
+		return false, fmt.Errorf("Unable to pull valid INFO for %s", n.Name)
 	}
 
 	n.Info = nodeinfo
@@ -97,7 +110,10 @@ func (n *RedisNode) UpdateData() (bool, error) {
 	ud := time.Duration(0 - uptime)
 	n.LastStart = now.Add(ud)
 
-	cfg, _ := conn.ConfigGet("save")
+	cfg, err := conn.ConfigGet("save")
+	if err != nil {
+		log.Print("Unable to get 'save' from config call")
+	}
 	does_save := cfg["save"]
 	if len(does_save) != 0 {
 		n.SaveEnabled = true
@@ -140,6 +156,9 @@ func (n *RedisNode) UpdateData() (bool, error) {
 			continue
 		}
 		slavenodes = append(slavenodes, snode)
+	}
+	if n.Slaves == nil {
+		n.Slaves = make([]*RedisNode, 5)
 	}
 	n.Slaves = slavenodes
 	n.LastUpdateValid = true
@@ -201,11 +220,16 @@ type NodeManager interface {
 
 func LoadNodeFromHostPort(ip string, port int, authtoken string) (node *RedisNode, err error) {
 	name := fmt.Sprintf("%s:%d", ip, port)
+	node, exists := NodesMap[name]
+	if exists {
+		return node, nil
+	}
+	log.Printf("No matching node %s, loading from raw", name)
 	node = &RedisNode{Name: name, Address: ip, Port: port, Auth: authtoken}
 	node.LastUpdateValid = false
 	node.Slaves = make([]*RedisNode, 5)
 
-	conn, err := client.DialWithConfig(&client.DialConfig{Address: name, Password: authtoken, Timeout: 2 * time.Second})
+	conn, err := client.DialWithConfig(&client.DialConfig{Address: name, Password: authtoken, Timeout: DialTimeout})
 	if err != nil {
 		log.Printf("Failed connection to %s:%d. Error:%s", ip, port, err.Error())
 		return node, err
@@ -215,10 +239,15 @@ func LoadNodeFromHostPort(ip string, port int, authtoken string) (node *RedisNod
 	node.Connected = true
 	nodeInfo, err := conn.Info()
 	if err != nil {
+		if strings.Contains(err.Error(), "password") {
+			node.HasValidAuth = false
+		}
 		log.Printf("WARNING: NODE '%s' was unable to return Info(). Error='%s'", name, err)
+		return node, err
 	}
 	if nodeInfo.Server.Version == "" {
 		log.Printf("WARNING: NODE '%s' was unable to return Info(). Error=NONE", name)
+		return node, err
 	}
 	node.HasValidAuth = true
 	_, err = node.UpdateData()
@@ -227,6 +256,7 @@ func LoadNodeFromHostPort(ip string, port int, authtoken string) (node *RedisNod
 		return node, err
 	}
 	node.Info = nodeInfo
+	NodesMap[name] = node
 	//log.Printf("node: %+v", node)
 	return node, nil
 }

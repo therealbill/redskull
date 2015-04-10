@@ -27,7 +27,7 @@
 		<div class="small-box bg-aqua">
 		{{end}}
 			<div class="inner">
-				<h3> {{.Constellation.ErrorPodCount}} </h3>
+				<h3> {{.Constellation.NumErrorPods}} </h3>
 				<p> Pods With Errors </p>
 			</div>
 			<div class="icon"> <i class="ion "></i> </div>
@@ -42,7 +42,7 @@
 		<div class="box-body">
 			<div class="nav-tabs-custom">
 				<ul class="nav nav-tabs">
-					<li> <a href="#allerrors" data-toggle="tab">All Errors ({{.Constellation.ErrorPodCount}})</a> </li>
+					<li> <a href="#allerrors" data-toggle="tab">All Errors ({{.Constellation.NumErrorPods}})</a> </li>
 					<li> <a href="#noquorum" data-toggle="tab">No Quorum ({{.Data.NoQuorum}})</a> </li>
 					<li> <a href="#missingsentinels" data-toggle="tab">Missing Sentinels ({{.Data.MissingSentinels}})</a> </li>
 					<li> <a href="#toomanysentinels" data-toggle="tab">Too Many Sentinels ({{.Data.TooManySentinels}})</a> </li>
@@ -59,7 +59,7 @@
 								<th>Slave Count</th>
 								<th>Sentinel Count</th>
 							</tr>
-							{{range .Constellation.GetPodsInError }}
+							{{range .Constellation.PodsInError }}
 								{{ if ne .Name "" }}
 								<tr class="text-white text-bold">
 									<td>
@@ -113,7 +113,7 @@
 								<th>Slave Count</th>
 								<th>Sentinel Count</th>
 							</tr>
-							{{range .Constellation.GetPodsInError }}
+							{{range .Constellation.PodsInError }}
 								{{if .HasQuorum }}
 								{{else}}
 								<tr class="text-white text-bold">
@@ -145,7 +145,7 @@
 								<th>Needed Sentinels</th>
 								<th>Reported Sentinels</th>
 							</tr>
-							{{range .Constellation.GetPodsInError }}
+							{{range .Constellation.PodsInError }}
 								{{if .MissingSentinels }}
 								<tr class="text-white text-bold">
 									<td> <a href="/pod/{{.Info.Name}}"> {{.Info.Name}}</a> </td>
@@ -189,7 +189,7 @@
 								<th>Reported Sentinel Count</th>
 								<th>Active Sentinels</th>
 							</tr>
-							{{range .Constellation.GetPodsInError }}
+							{{range .Constellation.PodsInError }}
 							{{if .Name }}
 								{{if .TooManySentinels}}
 								<tr class="text-white text-bold">
@@ -214,7 +214,7 @@
 								<th>Name</th>
 								<th>Slave Count</th>
 							</tr>
-							{{range .Constellation.GetPodsInError }}
+							{{range .Constellation.PodsInError }}
 								{{ if ne .Name "" }}
 								{{if .CanFailover }}
 								{{else}}
@@ -241,15 +241,15 @@
 								<th>Name</th>
 								<th>Master</th>
 							</tr>
-							{{range .Constellation.GetPodsInError }}
+							{{range .Data.Groups.InvalidAuth }}
 								{{ if ne .Name "" }}
-								{{if .HasInfo }}
-								{{else}}
-								<tr class="text-white text-bold">
-									<td> <a href="/pod/{{.Info.Name}}"> {{.Info.Name}}</a> </td>
-									<td>{{.Info.IP}}:{{.Info.Port}}</td>
-								</tr>
-								{{end}}
+									{{if .ValidAuth }}
+									{{else}}
+									<tr class="text-white text-bold">
+										<td> <a href="/pod/{{.Info.Name}}"> {{.Info.Name}}</a> </td>
+										<td>{{.Info.IP}}:{{.Info.Port}}</td>
+									</tr>
+									{{end}}
 								{{end}}
 							{{end}}
 						</table>

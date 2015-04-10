@@ -24,6 +24,7 @@ type RedisPod struct {
 	ReportedSentinelCount int
 	AuthToken             string
 	ValidAuth             bool
+	ValidMasterConnection bool
 	NeededSentinels       int
 	MissingSentinels      bool
 	TooManySentinels      bool
@@ -59,25 +60,40 @@ func (rp *RedisPod) HasQuorum() bool {
 // CanFailover tests failover conditions to determine if a failover call would
 // succeed
 func (rp *RedisPod) CanFailover() bool {
+	if rp.AuthToken == "" {
+		log.Printf("%s has no valid auth, so considered unable to failover", rp.Name)
+		return false
+	}
 	promotable_slaves := 0
 	if rp.Master == nil {
+		log.Print("CanFailover finds no master, calling LoadNodeFromHostPort")
 		master, err := LoadNodeFromHostPort(rp.Info.IP, rp.Info.Port, rp.AuthToken)
 		if err != nil {
 			log.Printf("Unable to load %s. Err: '%s'", rp.Name, err)
 			if strings.Contains(err.Error(), "invalid password") {
 				rp.ValidAuth = false
+				master.HasValidAuth = false
 			} else {
-				rp.ValidAuth = true
+				rp.ValidMasterConnection = false
 			}
 			return false
 		}
+		rp.ValidAuth = true
+		rp.ValidMasterConnection = true
 		rp.Master = master
+	}
+	if !rp.ValidAuth {
+		return false
 	}
 	if rp.Master.Slaves == nil {
 		rp.HasInfo = false
 	} else {
 		rp.HasInfo = true
 		for _, slave := range rp.Master.Slaves {
+			if slave.Info.Server.Version == "" {
+				log.Print("slave had no info stored, skipping")
+				continue
+			}
 			if slave.Info.Replication.SlavePriority > 0 {
 				rp.HasValidSlaves = true
 				promotable_slaves++
@@ -127,21 +143,21 @@ func (rp *RedisPod) HasErrors() bool {
 	}
 	if rp.NeededSentinels > rp.SentinelCount {
 		rp.MissingSentinels = true
-		hasErrors = true
+		return true
 	}
 	if rp.Info.NumOtherSentinels+1 > rp.NeededSentinels {
 		rp.NeedsReset = true
-		hasErrors = true
+		return true
 	}
 	if rp.ReportedSentinelCount >= (rp.Info.Quorum * 2) {
 		rp.TooManySentinels = true
-		hasErrors = true
+		return true
 	}
 	if !rp.CanFailover() {
-		hasErrors = true
+		return true
 	}
 	if !rp.SlavesHaveEnoughMemory() {
-		hasErrors = true
+		return true
 	}
 	return hasErrors
 }
