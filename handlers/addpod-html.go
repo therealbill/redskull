@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"encoding/json"
+	"io/ioutil"
+
 	"github.com/therealbill/redskull/actions"
 	"github.com/therealbill/redskull/common"
 	"github.com/zenazn/goji/web"
-	"io/ioutil"
 )
 
 // AddPodHTML is the action target for adding a pod. It does the heavy lifting
@@ -20,7 +21,10 @@ func AddPodHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	log.Print("########### ADD POD FORM PROCESSING ###########")
 	r.ParseForm()
 	log.Print("add pod post called")
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[AddPodHTML] ", err)
+	}
 	context.Title = "Pod Add Result"
 	context.ViewTemplate = "podaddpost"
 
@@ -42,7 +46,7 @@ func AddPodHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 		Pod      actions.RedisPod
 	}
 	res := results{Name: podname, Address: address, Quorum: quorum}
-	_, err = ManagedConstellation.MonitorPod(podname, host, port, quorum, auth)
+	_, err = context.Constellation.MonitorPod(podname, host, port, quorum, auth)
 	if err != nil {
 		log.Printf("Error on addpod: %s", err.Error())
 		res.Error = err.Error()
@@ -51,9 +55,9 @@ func AddPodHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 		render(w, context)
 		return
 	}
-	// I hate this, jsut here for debugging
+	// I hate this, just here for debugging
 	time.Sleep(25 * time.Millisecond)
-	pod, err := ManagedConstellation.GetPod(podname)
+	pod, err := context.Constellation.GetPod(podname)
 	if err != nil {
 		log.Printf("H:MP-> Unable to get newly added pod! Error: %s", err.Error())
 		res.Error = err.Error()
@@ -65,7 +69,7 @@ func AddPodHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 	//log.Printf("H:AP-> got pod with master node = %+v", pod.Master)
 	if len(pod.Master.Name) > 0 {
-		ManagedConstellation.PodMap[podname] = pod
+		context.Constellation.PodMap[podname] = pod
 		//context.NodeMaster.AddNode(pod.Master)
 	}
 	context.Pod = pod
@@ -76,13 +80,23 @@ func AddPodHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 
 // AddPodForm displays the form for adding a pod
 func AddPodForm(c web.C, w http.ResponseWriter, r *http.Request) {
-	context := PageContext{Title: "Add Pod to Constellation", ViewTemplate: "addpod", Constellation: ManagedConstellation}
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[AddPodForm] ", err)
+	}
+	context.Title = "Add Pod to Constellation"
+	context.ViewTemplate = "addpod"
 	render(w, context)
 }
 
 // AddSentinelForm displays the form for adding a sentinel
 func AddSentinelForm(c web.C, w http.ResponseWriter, r *http.Request) {
-	context := PageContext{Title: "Add Sentinel to Constellation", ViewTemplate: "addsentinel", Constellation: ManagedConstellation}
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[AddPodForm] ", err)
+	}
+	context.Title = "Add Sentinel to Constellation"
+	context.ViewTemplate = "addsentinel"
 	render(w, context)
 }
 
@@ -92,7 +106,10 @@ func AddSentinelHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Change to use actions package
 	log.Print("########### ADD SENTINEL FORM PROCESSING ###########")
 	r.ParseForm()
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[AddPodHTML] ", err)
+	}
 	context.Title = "Sentinel Add Result"
 	context.ViewTemplate = "sentineladdpost"
 	context.Refresh = true
@@ -108,14 +125,15 @@ func AddSentinelHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 		HasError bool
 	}
 	res := results{Name: name, Address: address}
-	err := ManagedConstellation.AddSentinelByAddress(address)
+	err = context.Constellation.AddSentinelByAddress(address)
 	if err != nil {
 		log.Printf("Error on addsentinel: %s", err.Error())
 		res.Error = err.Error()
 		res.HasError = true
 	}
-	sentinel, ok := ManagedConstellation.RemoteSentinels[address]
-	if len(sentinel.Name) == 0 || !ok {
+	_, exists := context.Constellation.RemoteSentinels[address]
+	//if len(sentinel.Name) == 0 || !exists {
+	if !exists {
 		res.Error = "H:MP-> Unable to get newly added sentinel!"
 		res.HasError = true
 	}
@@ -127,6 +145,10 @@ func AddSentinelHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 func AddPodJSON(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Change to use actions package
 	var reqdata common.MonitorRequest
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[AddPodJSON] ", err)
+	}
 	body, err := ioutil.ReadAll(r.Body)
 	err = json.Unmarshal(body, &reqdata)
 	if err != nil {
@@ -148,7 +170,7 @@ func AddPodJSON(c web.C, w http.ResponseWriter, r *http.Request) {
 		PodURL   string
 	}
 	res := results{Name: reqdata.Podname, Address: reqdata.MasterAddress, Port: reqdata.MasterPort, Quorum: reqdata.Quorum}
-	_, err = ManagedConstellation.MonitorPod(reqdata.Podname, reqdata.MasterAddress, reqdata.MasterPort, reqdata.Quorum, reqdata.AuthToken)
+	_, err = context.Constellation.MonitorPod(reqdata.Podname, reqdata.MasterAddress, reqdata.MasterPort, reqdata.Quorum, reqdata.AuthToken)
 	if err != nil {
 		res.Error = err.Error()
 		res.HasError = true

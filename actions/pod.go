@@ -66,7 +66,6 @@ func (rp *RedisPod) CanFailover() bool {
 	}
 	promotable_slaves := 0
 	if rp.Master == nil {
-		log.Print("CanFailover finds no master, calling LoadNodeFromHostPort")
 		master, err := LoadNodeFromHostPort(rp.Info.IP, rp.Info.Port, rp.AuthToken)
 		if err != nil {
 			log.Printf("Unable to load %s. Err: '%s'", rp.Name, err)
@@ -82,11 +81,12 @@ func (rp *RedisPod) CanFailover() bool {
 		rp.ValidMasterConnection = true
 		rp.Master = master
 	}
-	if !rp.ValidAuth {
+	if !rp.Master.HasValidAuth {
 		return false
 	}
-	if rp.Master.Slaves == nil {
+	if !rp.Master.LastUpdateValid {
 		rp.HasInfo = false
+		log.Printf("Pod %s has no valid update", rp.Name)
 	} else {
 		rp.HasInfo = true
 		for _, slave := range rp.Master.Slaves {
@@ -138,6 +138,10 @@ func (rp *RedisPod) HasErrors() bool {
 	rp.NeededSentinels = rp.Info.Quorum + 1
 	rp.ReportedSentinelCount = rp.Info.NumOtherSentinels
 	hasErrors := false
+	if rp.Master != nil {
+		rp.Master.LastUpdateValid = false
+		rp.Master.UpdateData()
+	}
 	if rp.Info.NumOtherSentinels > 0 {
 		rp.ReportedSentinelCount++
 	}

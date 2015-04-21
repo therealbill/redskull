@@ -13,7 +13,10 @@ import (
 
 // ShowNodes shows the node listing page
 func ShowNodes(c web.C, w http.ResponseWriter, r *http.Request) {
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[SHOWNODES]", err)
+	}
 	//NodeMaster.LoadNodes()
 	context.Data = context.Constellation.NodeMap
 	context.Title = "Red Skull: Known Nodes"
@@ -25,7 +28,10 @@ func ShowNodes(c web.C, w http.ResponseWriter, r *http.Request) {
 func ShowNode(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["name"]
 	title := fmt.Sprintf("Node: %s", target)
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[SHOWNODES]", err)
+	}
 	context.Title = title
 	context.ViewTemplate = "show-node"
 	podname := context.Constellation.NodeNameToPodMap[target]
@@ -40,8 +46,14 @@ func ShowNode(c web.C, w http.ResponseWriter, r *http.Request) {
 func AddNode(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["nodeName"]
 	node := NodeMaster.GetNode(target)
-	title := fmt.Sprintf("Add Node %s", target)
-	context := PageContext{Title: title, ViewTemplate: "add-node-form", NodeMaster: NodeMaster, Data: node}
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[ADDNODE]", err)
+	}
+	context.Title = fmt.Sprintf("Add Node %s", target)
+	context.ViewTemplate = "add-node-form"
+	context.NodeMaster = NodeMaster
+	context.Data = node
 	render(w, context)
 }
 
@@ -49,7 +61,10 @@ func AddNode(c web.C, w http.ResponseWriter, r *http.Request) {
 func GetNodeJSON(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["name"]
 	//node := NodeMaster.GetNode(target)
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[GetNodeJSON]", err)
+	}
 	podname := context.Constellation.NodeNameToPodMap[target]
 	log.Printf("Getting node for pod: %s", podname)
 	node, _ := context.Constellation.GetNode(target, podname, "")
@@ -73,7 +88,10 @@ func AddNodeHTMLProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 	// to provision the node then add it into this system
 	nodename := c.URLParams["nodeName"]
 	node := NodeMaster.GetNode(nodename)
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[GetNodeJSON]", err)
+	}
 	context.Title = "Node Node Result"
 	context.ViewTemplate = "slave-added"
 	context.NodeMaster = NodeMaster

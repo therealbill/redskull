@@ -1,0 +1,23 @@
+{{define "content"}}
+	<div class="box-body">
+		<div class="row">
+			<div class="col-md-12">
+				<div class="box box-solid">
+					<div class="box-header">
+						<h3 class="box-title"> Pod Removal <span class="fa fa-spinner fa-gear"></span></h3>
+					</div><!-- /.box-header -->
+					<div class="box-body">
+						{{ if .Data.HasError }} 
+						<h3> Pod Removal Error </h3>
+						<p> {{.Data.Error}}
+						{{ else }}
+						<h3> Pod Removed</h3>
+						<p> {{.Data.Message}}
+						{{end}}
+					</div><!-- /.box-body -->
+				</div><!-- /.box -->
+			</div><!-- ./col -->
+		</div>
+	</div>
+
+{{end}}

@@ -27,22 +27,30 @@ type ConstellationConfig struct {
 
 func RefreshData() {
 	t := time.Tick(60 * time.Second)
+	context, err := handlers.NewPageContext()
+	if err != nil {
+		log.Fatal("[RefreshData]", err)
+	}
+	mc := context.Constellation
+	if err != nil {
+		log.Fatal("Unable to connect to constellation")
+	}
 	for _ = range t {
-		handlers.ManagedConstellation.LoadSentinelConfigFile()
-		handlers.ManagedConstellation.GetAllSentinels()
-		for _, pod := range handlers.ManagedConstellation.RemotePodMap {
-			_, _ = handlers.ManagedConstellation.LocalPodMap[pod.Name]
-			auth := handlers.ManagedConstellation.GetPodAuth(pod.Name)
+		mc.LoadSentinelConfigFile()
+		mc.GetAllSentinels()
+		for _, pod := range mc.RemotePodMap {
+			_, _ = mc.LocalPodMap[pod.Name]
+			auth := mc.GetPodAuth(pod.Name)
 			if pod.AuthToken != auth && auth > "" {
 				pod.AuthToken = auth
 			}
 		}
-		for _, pod := range handlers.ManagedConstellation.LocalPodMap {
-			pod.AuthToken = handlers.ManagedConstellation.GetPodAuth(pod.Name)
+		for _, pod := range mc.LocalPodMap {
+			pod.AuthToken = mc.GetPodAuth(pod.Name)
 		}
-		handlers.ManagedConstellation.IsBalanced()
-		log.Printf("Main Cache Stats: %+v", handlers.ManagedConstellation.AuthCache.GetStats())
-		log.Printf("Hot Cache Stats: %+v", handlers.ManagedConstellation.AuthCache.GetHotStats())
+		mc.IsBalanced()
+		log.Printf("Main Cache Stats: %+v", mc.AuthCache.GetStats())
+		log.Printf("Hot Cache Stats: %+v", mc.AuthCache.GetHotStats())
 	}
 }
 
@@ -127,15 +135,15 @@ func main() {
 	//go RefreshData()
 	_, _ = mc.GetPodMap()
 	mc.IsBalanced()
-	handlers.ManagedConstellation = mc
+	//mc = mc
 	//_ = handlers.NewPageContext()
-	if handlers.ManagedConstellation.AuthCache == nil {
+	if mc.AuthCache == nil {
 		log.Print("Uninitialized AuthCache, StartCache not called, calling now")
-		handlers.ManagedConstellation.StartCache()
+		mc.StartCache()
 	}
-	log.Printf("Main Cache Stats: %+v", handlers.ManagedConstellation.AuthCache.GetStats())
-	log.Printf("Hot Cache Stats: %+v", handlers.ManagedConstellation.AuthCache.GetHotStats())
-	//log.Printf("MC:%+v", handlers.ManagedConstellation)
+	log.Printf("Main Cache Stats: %+v", mc.AuthCache.GetStats())
+	log.Printf("Hot Cache Stats: %+v", mc.AuthCache.GetHotStats())
+	handlers.SetConstellation(mc)
 
 	// HTML Interface URLS
 	goji.Get("/constellation/", handlers.ConstellationInfoHTML) // Needs moved? instance tree?
@@ -145,6 +153,7 @@ func main() {
 	goji.Post("/constellation/addsentinel/", handlers.AddSentinelHTML)
 	goji.Get("/constellation/addsentinelform/", handlers.AddSentinelForm)
 	goji.Get("/constellation/rebalance/", handlers.RebalanceHTML)
+	goji.Get("/constellation/removepod/:podname", handlers.RemovePodHTML)
 	//goji.Get("/pod/:podName/dropslave", handlers.DropSlaveHTML)
 	goji.Get("/pod/:podName/addslave", handlers.AddSlaveHTML)
 	goji.Post("/pod/:podName/addslave", handlers.AddSlaveHTMLProcessor)

@@ -16,8 +16,13 @@ import (
 
 // WEB UI CALL
 func RebalanceHTML(c web.C, w http.ResponseWriter, r *http.Request) {
-	context := PageContext{Title: "Rebalance Attempt Complete", ViewTemplate: "rebalance_complete", Constellation: ManagedConstellation}
-	ManagedConstellation.Balance()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[RebalanceHTML]", err)
+	}
+	context.Title = "Rebalance Attempt Complete"
+	context.ViewTemplate = "rebalance_complete"
+	context.Constellation.Balance()
 	context.Refresh = true
 	context.RefreshTime = 30
 	context.RefreshURL = "/constellation/"
@@ -25,10 +30,15 @@ func RebalanceHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func ConstellationInfoHTML(c web.C, w http.ResponseWriter, r *http.Request) {
-	title := "Constellation Information"
-	subtitle := ManagedConstellation.Name
-	log.Printf("URL: '%s'", r.URL)
-	context := PageContext{Title: title, SubTitle: subtitle, ViewTemplate: "show_constellation", Constellation: ManagedConstellation, Data: ManagedConstellation}
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[ConstellationInfoHTML]", err)
+	}
+	subtitle := context.Constellation.Name
+	context.Title = "Constellation Information"
+	context.SubTitle = subtitle
+	context.ViewTemplate = "show_constellation"
+	context.Data = context.Constellation
 	render(w, context)
 
 }
@@ -36,20 +46,32 @@ func ConstellationInfoHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 // API Calls
 
 func RebalanceJSON(c web.C, w http.ResponseWriter, r *http.Request) {
-	ManagedConstellation.Balance()
-	response := InfoResponse{Status: "COMPLETE", StatusMessage: "Rebalance attempt completed", Data: ManagedConstellation.IsBalanced()}
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[RebalanceJSON]", err)
+	}
+	context.Constellation.Balance()
+	response := InfoResponse{Status: "COMPLETE", StatusMessage: "Rebalance attempt completed", Data: context.Constellation.IsBalanced()}
 	packed, _ := json.Marshal(response)
 	w.Write(packed)
 }
 
 func ConstellationInfoJSON(c web.C, w http.ResponseWriter, r *http.Request) {
-	packed, _ := json.Marshal(ManagedConstellation)
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[ConstellationInfoJSON]", err)
+	}
+	packed, _ := json.Marshal(context.Constellation)
 	w.Write(packed)
 }
 
 func DoFailoverJSON(ctx web.C, w http.ResponseWriter, r *http.Request) (err error) {
 	podname := ctx.URLParams["podName"]
-	didFailover, err := ManagedConstellation.Failover(podname)
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[DoFailoverJSON]", err)
+	}
+	didFailover, err := context.Constellation.Failover(podname)
 	if err != nil {
 		retcode, emsg := handleFailoverError(podname, r, err)
 		log.Printf("%d: '%s'", retcode, emsg)
@@ -81,7 +103,11 @@ func APIFailover(c web.C, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	reqdata.Podname = c.URLParams["podName"]
-	ok, err := ManagedConstellation.Failover(reqdata.Podname)
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[APIFailover]", err)
+	}
+	ok, err := context.Constellation.Failover(reqdata.Podname)
 	if err != nil {
 		em := err.Error()
 		em = strings.TrimSpace(em)
@@ -107,7 +133,7 @@ func APIFailover(c web.C, w http.ResponseWriter, r *http.Request) {
 	response.Status = "SUCCESS"
 	response.StatusMessage = "Failover command accepted"
 	if reqdata.ReturnNew {
-		newmaster, err := ManagedConstellation.GetMaster(reqdata.Podname)
+		newmaster, err := context.Constellation.GetMaster(reqdata.Podname)
 		if err != nil {
 			response.Status = "ERROR"
 			response.StatusMessage = err.Error()
@@ -121,7 +147,11 @@ func APIFailover(c web.C, w http.ResponseWriter, r *http.Request) {
 func APIGetSlaves(c web.C, w http.ResponseWriter, r *http.Request) {
 	var response InfoResponse
 	podName := c.URLParams["podName"]
-	slaves, err := ManagedConstellation.GetSlaves(podName)
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[APIGetSlaves]", err)
+	}
+	slaves, err := context.Constellation.GetSlaves(podName)
 	response.Data = slaves
 	if err != nil {
 		response.Status = "ERROR"
@@ -134,7 +164,11 @@ func APIGetSlaves(c web.C, w http.ResponseWriter, r *http.Request) {
 func APIGetMaster(c web.C, w http.ResponseWriter, r *http.Request) {
 	var response InfoResponse
 	podName := c.URLParams["podName"]
-	master, err := ManagedConstellation.GetMaster(podName)
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[APIGetMaster]", err)
+	}
+	master, err := context.Constellation.GetMaster(podName)
 	if err != nil {
 		em := fmt.Errorf("Sentinel command error '%s'", err)
 		e := airbrake.ExtendedNotification{ErrorClass: "Sentinel.Command", Error: em}
@@ -175,8 +209,11 @@ func APIMonitorPod(c web.C, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, em, retcode)
 	}
 	reqdata.Podname = podName
-	ok, err := ManagedConstellation.MonitorPod(podName, reqdata.MasterAddress, reqdata.MasterPort, reqdata.Quorum, reqdata.AuthToken)
-
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[APIMonitorPod]", err)
+	}
+	ok, err := context.Constellation.MonitorPod(podName, reqdata.MasterAddress, reqdata.MasterPort, reqdata.Quorum, reqdata.AuthToken)
 	if !ok {
 		response.StatusMessage = fmt.Sprintf("Pod '%s' failed to reach sentinel quorum.", reqdata.Podname)
 		response.Status = "INCOMPLETE"
@@ -201,7 +238,11 @@ func APIRemovePod(c web.C, w http.ResponseWriter, r *http.Request) {
 	podName := c.URLParams["podName"]
 	log.Print("Removing pod:", podName)
 
-	_, err := ManagedConstellation.RemovePod(podName)
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[APIRemovePod]", err)
+	}
+	_, err = context.Constellation.RemovePod(podName)
 	if err != nil {
 		response.Status = "COMMANDERROR"
 		response.StatusMessage = err.Error()
@@ -220,7 +261,11 @@ func APIGetPodMap(c web.C, w http.ResponseWriter, r *http.Request) {
 	var (
 		response InfoResponse
 	)
-	pods, _ := ManagedConstellation.GetPodMap()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[APIGetPodMap]", err)
+	}
+	pods, _ := context.Constellation.GetPodMap()
 	response.Status = "COMPLETE"
 	response.Data = pods
 	packed, err := json.Marshal(response)
@@ -234,7 +279,11 @@ func APIGetPods(c web.C, w http.ResponseWriter, r *http.Request) {
 	var (
 		response InfoResponse
 	)
-	pods := ManagedConstellation.GetPods()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[APIGetPods]", err)
+	}
+	pods := context.Constellation.GetPods()
 	response.Status = "COMPLETE"
 	response.Data = pods
 	packed, err := json.Marshal(response)
@@ -256,7 +305,11 @@ func APIGetPod(c web.C, w http.ResponseWriter, r *http.Request) {
 		response.Status = "ERROR"
 		response.StatusMessage = err.Error()
 	} else {
-		pod, err := ManagedConstellation.GetPod(podname)
+		context, err := NewPageContext()
+		if err != nil {
+			log.Fatal("[APIGetPod]", err)
+		}
+		pod, err := context.Constellation.GetPod(podname)
 		if pod.Name > "" {
 			response.Status = "COMPLETE"
 			log.Printf("Pod data: %+v", pod)

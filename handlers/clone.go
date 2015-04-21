@@ -50,8 +50,14 @@ func Clone(c web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, data)
 }
 
+// TODO?: rename/copy this to have MigratePodToNewPod and CloneServer ?
 // CloneServer does the heavy lifting to clone one Redis instance to another.
 func CloneServer(originHost, cloneHost string, promoteWhenComplete, reconfigureSlaves bool, syncTimeout float64, roleRequired string) (result map[string]string) {
+	// the plan for jobID is to store the job status/ID into a shared storage
+	// (Consul) so API calls can be made to get current state of the job.
+	// TODO: Move the "can I clone" checks into the webrequest call so we can
+	// issue a "can't clone" call back if needed, then run this func in a
+	// goroutine. Also move the jobID creation there so we can return it.
 	jobId := uuid.New()
 	result = map[string]string{
 		"origin":      originHost,
@@ -61,6 +67,12 @@ func CloneServer(originHost, cloneHost string, promoteWhenComplete, reconfigureS
 		"status":      "pending",
 		"error":       "",
 	}
+
+	// TODO: Pre-migration data collection:
+	/*
+	* collect slave info for origin and clone pods
+	*
+	 */
 
 	if cloneHost == originHost {
 		log.Print("Can not clone a host to itself, aborting")
@@ -244,6 +256,14 @@ func CloneServer(originHost, cloneHost string, promoteWhenComplete, reconfigureS
 				result["status"] = "Complete"
 			}
 		}
+		// TODO: Add code to validate the clone's slave is caught up with the
+		// origin's replication point. If so,
+		// * issue a shutdown on the clone's original slave
+		// * issue a failover command
+		// * check to validate the new master is promoted
+		// * if above is correct, issue shutdown on origin
+		// * issue sentinel reset for the pod to clear old slaves
+		// * validate new
 		result["status"] = "Complete"
 	}
 	return

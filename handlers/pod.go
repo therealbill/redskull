@@ -17,9 +17,13 @@ import (
 
 // ShowPods shows the pods view page
 func ShowPods(c web.C, w http.ResponseWriter, r *http.Request) {
-	pods := ManagedConstellation.GetPods()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[SHOWPODS]", err)
+	}
+	pods := context.Constellation.GetPods()
+	log.Printf("[SHOWPODS] Found %d pods", len(pods))
 	title := "Red Skull: Known Pods"
-	context := NewPageContext()
 	context.Title = title
 	context.ViewTemplate = "show_pods"
 	context.CurrentURL = r.URL.Path
@@ -56,21 +60,24 @@ func ShowPod(c web.C, w http.ResponseWriter, r *http.Request) {
 		Metrics    map[string]int
 	}
 	target := c.URLParams["podName"]
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[SHOWPODS]", err)
+	}
 	context.Title = fmt.Sprintf("Pod: %s", target)
 	context.ViewTemplate = "show_pod"
 	pod, err := context.Constellation.GetPod(target)
 	if err != nil {
 		log.Printf("Unable to c.GetPod(%s) -> Error: %s", target, err)
 		context.Error = err
-		render(w, context)
+		http.Error(w, "No such Pod", 404)
 		return
 	}
 	sentinels := context.Constellation.GetSentinelsForPod(target)
 	var updated_slaves []*actions.RedisNode
 	if pod == nil {
 		// Need to load master here ...
-		context.Error = fmt.Errorf("Unable to lao dmaster for pod %s FIXME", target)
+		context.Error = fmt.Errorf("Unable to load master for pod %s FIXME", target)
 		render(w, context)
 		return
 	}
@@ -118,16 +125,31 @@ func ShowPod(c web.C, w http.ResponseWriter, r *http.Request) {
 // AddSlaveHTML shows the slave addition form
 func AddSlaveHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["podName"]
-	pod, _ := ManagedConstellation.GetPod(target)
 	title := fmt.Sprintf("Add Slave To Pod: %s", target)
-	context := PageContext{Title: title, ViewTemplate: "add-slave-form", Constellation: ManagedConstellation, Pod: pod}
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[ADDSLAVEHTML]", err)
+	}
+	pod, _ := context.Constellation.GetPod(target)
+	pod.Master.LastUpdateValid = false
+	pod.Master.UpdateData()
+	context.Constellation.PodMap[pod.Name] = pod
+	context.Constellation.LocalPodMap[pod.Name] = pod
+	context.Constellation.RemotePodMap[pod.Name] = pod
+	context.Title = title
+	context.ViewTemplate = "add-slave-form"
+	context.Pod = pod
 	render(w, context)
 }
 
 // APIAddSlave is the API call handler for adding a slave
 func APIAddSlave(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["podName"]
-	pod, _ := ManagedConstellation.GetPod(target)
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[APIADDSLAVE]", err)
+	}
+	pod, _ := context.Constellation.GetPod(target)
 	body, err := ioutil.ReadAll(r.Body)
 	var response InfoResponse
 	var reqdata common.AddSlaveRequest
@@ -160,6 +182,8 @@ func APIAddSlave(c web.C, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	pod.Master.LastUpdateValid = false
+	context.Constellation.PodMap[pod.Name] = pod
 	slave_target.ConfigSet("masterauth", pod.AuthToken)
 	slave_target.ConfigSet("requirepass", pod.AuthToken)
 	response.Status = "COMPLETE"
@@ -172,7 +196,10 @@ func APIAddSlave(c web.C, w http.ResponseWriter, r *http.Request) {
 // BalancePodProcessor calls the constellation's BalancePod function for the pod
 func BalancePodProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 	podname := c.URLParams["name"]
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[BalancePodProcessor]", err)
+	}
 	context.Title = "Pod Slave Result"
 	context.ViewTemplate = "balance-pod"
 	context.Refresh = true
@@ -196,8 +223,14 @@ func AddSlaveHTMLProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	log.Print("add slave processor called")
 	podname := c.URLParams["podName"]
-	pod, _ := ManagedConstellation.GetPod(podname)
-	context := PageContext{Title: "Pod Slave Result", ViewTemplate: "slave-added", Constellation: ManagedConstellation, Pod: pod}
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[AddSlaveHTMLProcessor]", err)
+	}
+	pod, _ := context.Constellation.GetPod(podname)
+	context.Title = "Pod Slave Result"
+	context.ViewTemplate = "slave-added"
+	context.Pod = pod
 	context.Refresh = true
 	context.RefreshURL = fmt.Sprintf("/pod/%s", pod.Name)
 	context.RefreshTime = 5
@@ -227,9 +260,19 @@ func AddSlaveHTMLProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = slave_target.SlaveOf(pod.Info.IP, fmt.Sprintf("%d", pod.Info.Port))
-	log.Printf("Err: %v", err)
-	slave_target.ConfigSet("masterauth", pod.AuthToken)
-	slave_target.ConfigSet("requirepass", pod.AuthToken)
+	if err != nil {
+		log.Printf("Err: %v", err)
+	} else {
+		log.Printf("Slave added success")
+		slave_target.ConfigSet("masterauth", pod.AuthToken)
+		slave_target.ConfigSet("requirepass", pod.AuthToken)
+		slave, err := actions.LoadNodeFromHostPort(address, port, pod.AuthToken)
+		if err != nil {
+			log.Printf("In AddSlaveHTMLProcessor, unable to get new slave node")
+		} else {
+			pod.Master.Slaves = append(pod.Master.Slaves, slave)
+		}
+	}
 	context.Data = res
 	render(w, context)
 
@@ -240,15 +283,18 @@ func ResetPodProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	log.Print("reset pod processor called")
 	podname := c.URLParams["name"]
-	pod, _ := ManagedConstellation.GetPod(podname)
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[BalancePodProcessor]", err)
+	}
+	pod, _ := context.Constellation.GetPod(podname)
 	context.Title = "Pod Slave Result"
 	context.ViewTemplate = "reset-issued"
 	context.Refresh = true
 	context.RefreshURL = fmt.Sprintf("/pod/%s", pod.Name)
 	context.RefreshTime = 10
 	context.Pod = pod
-	go ManagedConstellation.ResetPod(podname, false)
+	go context.Constellation.ResetPod(podname, false)
 	render(w, context)
 
 }

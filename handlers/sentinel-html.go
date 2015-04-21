@@ -12,13 +12,16 @@ import (
 func DoFailoverHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Needs changed to use templates!
 	podname := c.URLParams["name"]
-	pc := NewPageContext()
-	pc.ViewTemplate = "failover-requested"
-	pc.Refresh = true
-	pc.RefreshTime = 10
-	pc.RefreshURL = fmt.Sprintf("/pod/%s", podname)
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[DoFailoverHTML]", err)
+	}
+	context.ViewTemplate = "failover-requested"
+	context.Refresh = true
+	context.RefreshTime = 10
+	context.RefreshURL = fmt.Sprintf("/pod/%s", podname)
 	log.Printf("Failover requested for pod '%s'", podname)
-	didFailover, err := ManagedConstellation.Failover(podname)
+	didFailover, err := context.Constellation.Failover(podname)
 	if err != nil {
 		retcode, emsg := handleFailoverError(podname, r, err)
 		log.Printf("%d: '%s'", retcode, emsg)
@@ -27,5 +30,5 @@ func DoFailoverHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 		retcode, emsg := handleFailoverError(podname, r, err)
 		log.Printf("%d: '%s'", retcode, emsg)
 	}
-	render(w, pc)
+	render(w, context)
 }

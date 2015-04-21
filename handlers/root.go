@@ -11,7 +11,10 @@ import (
 // dashboard at the root.
 func Root(c web.C, w http.ResponseWriter, r *http.Request) {
 	//ManagedConstellation.LoadPods()
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("Root", err)
+	}
 	context.Title = "Welcome to the Redis Manager"
 	context.ViewTemplate = "index"
 	log.Print("Index called")

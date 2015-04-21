@@ -4,6 +4,7 @@ package handlers
 // TODO: Move error handlers to error package
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,10 +17,10 @@ import (
 	"github.com/therealbill/redskull/actions"
 )
 
-// ManagedConstellation represents the constellation serveed by this Red Skull
+// constellation represents the constellation serveed by this Red Skull
 // instance This will need refactored to use the new termin for the
 // super-constellation reflecting the evoluton of the constellation term
-var ManagedConstellation *actions.Constellation
+var constellation actions.Constellation
 
 // NodeMaster is deprecated. Previously/currently used for storing node
 // connections. It needs refactored to use the constellation-wide node routines
@@ -55,9 +56,17 @@ type PageContext struct {
 
 // NewPageContext instantiates and returns a PageContext with "global" data
 // already set.
-func NewPageContext() (pc PageContext) {
-	pc = PageContext{Static: STATIC_URL, Constellation: ManagedConstellation, NodeMaster: NodeMaster}
+func NewPageContext() (pc PageContext, err error) {
+	if constellation.Name == "" {
+		return pc, errors.New("constellation was not properly initialized")
+	}
+	pc = PageContext{Static: STATIC_URL, Constellation: &constellation, NodeMaster: NodeMaster}
 	return
+}
+
+func SetConstellation(con actions.Constellation) {
+	log.Printf("Setting handlers.constellation: %s", con.Name)
+	constellation = con
 }
 
 // getTemplateList returns the base template and the requested template

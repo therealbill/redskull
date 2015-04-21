@@ -75,15 +75,6 @@ func (n *RedisNode) UpdateData() (bool, error) {
 		return false, err
 	}
 	defer conn.ClosePool()
-	/*
-		pinged := conn.Ping()
-		if pinged != nil {
-			err = fmt.Errorf("Unable to PING node %s with config %+v. ERROR: %s", n.Name, dconf, pinged)
-			n.LastUpdateValid = false
-			n.LastUpdateDelay = time.Since(n.LastUpdate)
-			return false, err
-		}
-	*/
 	nodeinfo, err := conn.Info()
 	if err != nil {
 		log.Print("Info error on node. Err:", err)
@@ -164,6 +155,7 @@ func (n *RedisNode) UpdateData() (bool, error) {
 	n.LastUpdateValid = true
 	n.LastUpdate = time.Now()
 	n.LastUpdateDelay = time.Since(n.LastUpdate)
+	NodesMap[n.Name] = n
 	return true, nil
 }
 
@@ -224,7 +216,6 @@ func LoadNodeFromHostPort(ip string, port int, authtoken string) (node *RedisNod
 	if exists {
 		return node, nil
 	}
-	log.Printf("No matching node %s, loading from raw", name)
 	node = &RedisNode{Name: name, Address: ip, Port: port, Auth: authtoken}
 	node.LastUpdateValid = false
 	node.Slaves = make([]*RedisNode, 5)

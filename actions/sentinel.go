@@ -228,6 +228,7 @@ func (s *Sentinel) RemovePod(podname string) (ok bool, err error) {
 		// convert to custom errors package
 		return false, err
 	}
+	delete(s.PodMap, podname)
 	return true, err
 }
 

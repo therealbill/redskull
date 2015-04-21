@@ -78,7 +78,7 @@ type SentinelOverrides struct {
 // constellation, and hence this RedSkull instance, belongs to.
 // In the future this will be used in clsuter coordination as well as for a
 // protective measure against cluster merge
-func GetConstellation(name, cfg, group, sentinelAddress string) (*Constellation, error) {
+func GetConstellation(name, cfg, group, sentinelAddress string) (Constellation, error) {
 	con := Constellation{Name: name}
 	con.SentinelConfig.ManagedPodConfigs = make(map[string]SentinelPodConfig)
 	con.PodToSentinelsMap = make(map[string][]*Sentinel)
@@ -101,7 +101,7 @@ func GetConstellation(name, cfg, group, sentinelAddress string) (*Constellation,
 	con.Balanced = true
 	con.PeerList = make(map[string]string)
 	//log.Printf("Metrics: %+v", con.GetStats())
-	return &con, nil
+	return con, nil
 }
 
 // ConstellationStats holds mtrics about the constellation. As the
@@ -168,15 +168,11 @@ func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, er
 	}
 	node, exists := c.NodeMap[name]
 	if exists {
-		log.Print("Have node, calling Update")
-		didUpdate, err := node.UpdateData()
+		_, err := node.UpdateData()
 		if err != nil {
 			log.Print("ERROR in GetNode:Update -> ", err)
 			// somehow I need to find a good way to bubble up this error as it usually means bad auth
 			return node, err
-		}
-		if !didUpdate {
-			log.Print("Update not needed, data still fresh")
 		}
 		if c.NodeMap == nil {
 			c.NodeMap = make(map[string]*RedisNode)
@@ -280,6 +276,7 @@ func (c *Constellation) LoadLocalPods() error {
 			c.LocalSentinel.Name = address
 			log.Printf("Determined LOCAL address is: %s", address)
 			log.Printf("Determined LOCAL name is: %s", c.LocalSentinel.Name)
+			c.Name = address
 		} else {
 			address = fmt.Sprintf("%s:%d", c.SentinelConfig.Host, c.SentinelConfig.Port)
 			log.Printf("Determined LOCAL address is: %s", address)
@@ -334,7 +331,7 @@ func (c *Constellation) LoadLocalPods() error {
 		c.LocalPodMap[pod.Name] = &pod
 		c.LoadNodesForPod(&pod, &c.LocalSentinel)
 		ctr++
-		log.Printf("Loaded %d of %d cofnigured local pods", ctr, local_config_count)
+		log.Printf("Loaded %d of %d configured local pods", ctr, local_config_count)
 	}
 
 	log.Print("Done with LocalSentinel initialization")
@@ -449,6 +446,7 @@ func (c *Constellation) MonitorPod(podname, address string, port, quorum int, au
 	if !quorumReached {
 		return false, fmt.Errorf("C:MP -> Quorum not reached for pod '%s'", podname)
 	}
+
 	return true, nil
 }
 
@@ -456,14 +454,33 @@ func (c *Constellation) MonitorPod(podname, address string, port, quorum int, au
 // TODO: It neds removed from the sentinel's and the constellations'
 // mappings as well
 func (c *Constellation) RemovePod(podname string) (ok bool, err error) {
-	sentinels, _ := c.GetAllSentinels()
+	sentinels := c.GetSentinelsForPod(podname)
+	if err != nil {
+		log.Print("RemovePod GetAllSentinels err: ", err)
+		return false, err
+	}
+	log.Printf("Found %d sentinels handling %s", len(sentinels), podname)
 	for _, sentinel := range sentinels {
 		log.Printf("Removing pod from %s", sentinel.Name)
 		ok, err := sentinel.RemovePod(podname)
-		if err == nil && ok {
-			return ok, err
+		if err != nil || !ok {
+			log.Printf("Unable to remove %s from %s. Error:%s", podname, sentinel.Name, err.Error())
 		}
 	}
+	index := -1
+	for i, pod := range c.PodsInError {
+		if pod.Name == podname {
+			index = i
+			break
+		}
+	}
+	log.Printf("Need to remove pod %d from c.PodsInError", index)
+
+	delete(c.SentinelConfig.ManagedPodConfigs, podname)
+	delete(c.PodMap, podname)
+	delete(c.PodToSentinelsMap, podname)
+	delete(c.LocalPodMap, podname)
+	delete(c.RemotePodMap, podname)
 	return ok, err
 }
 
@@ -692,7 +709,7 @@ func (c *Constellation) AddSentinel(ip string, port int) error {
 		return err
 	}
 	address := fmt.Sprintf("%s:%d", ip, port)
-	log.Printf("*****************] Local Name: %s Add Called For: %s", c.LocalSentinel.Name, address)
+	//log.Printf("*****************] Local Name: %s Add Called For: %s", c.LocalSentinel.Name, address)
 	if address == c.LocalSentinel.Name {
 		return nil
 	}
@@ -738,7 +755,7 @@ func (c *Constellation) AddSentinel(ip string, port int) error {
 			log.Print("discovering pods on remote sentinel " + sentinel.Name)
 			sentinel.LoadPods()
 			pods, _ := sentinel.GetPods()
-			log.Printf(" %d Pods to load from %s ", len(pods), address)
+			log.Printf("%d Pods to load from %s ", len(pods), address)
 			c.RemoteSentinels[address] = &sentinel
 			for _, pod := range pods {
 				if pod.Name == "" {
@@ -882,7 +899,7 @@ func (c *Constellation) HasPodsInErrorState() bool {
 // ErrorPodCount returns the number of pods currently reporting errors
 func (c *Constellation) ErrorPodCount() (count int) {
 	log.Print("ErrorPodCount called")
-	if time.Since(c.LastErrorCheck) < (10 * time.Second) {
+	if time.Since(c.LastErrorCheck) < (3 * time.Second) {
 		log.Print("short interval, not refreshing data")
 		return c.NumErrorPods
 	}
@@ -897,7 +914,6 @@ func (c *Constellation) ErrorPodCount() (count int) {
 			log.Printf("Pod %s is being checked for errors again..skipping", pod.Name)
 			continue
 		}
-		log.Printf("ErrorPodCount checking pod %s", pod.Name)
 		if pod.HasErrors() {
 			log.Printf("pod %s has errors", pod.Name)
 			errormap[pod.Name] = pod
@@ -1026,7 +1042,7 @@ func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
 		c.PodMap[podname] = pod
 		return pod, err
 	}
-	if pod.Master != nil {
+	if pod == nil || pod.Master != nil {
 		return pod, nil
 	}
 	sentinels, _ := c.GetAllSentinels()
@@ -1249,6 +1265,7 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 							if err != nil {
 								log.Print(err)
 							}
+							log.Printf("myip: %+v", myip)
 							c.LocalSentinel.Host = myip[0]
 							log.Printf("NO BIND STATEMENT FOUND. USING: '%s'", c.LocalSentinel.Host)
 							me := "http://" + c.SentinelConfig.Host + ":" + GCPORT
@@ -1258,6 +1275,9 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 							go http.ListenAndServe(c.SentinelConfig.Host+":"+GCPORT, http.HandlerFunc(c.Peers.ServeHTTP))
 							c.StartCache()
 						}
+					}
+					if c.Name == "" {
+						c.Name = fmt.Sprintf("%s:%d", c.SentinelConfig.Host, c.SentinelConfig.Port)
 					}
 					return nil
 				}

@@ -26,7 +26,10 @@ type ErrorMetrics struct {
 func Dashboard(c web.C, w http.ResponseWriter, r *http.Request) {
 	dash_start := time.Now()
 	log.Print("Dashboard requested %v", dash_start)
-	context := NewPageContext()
+	context, err := NewPageContext()
+	if err != nil {
+		log.Fatal("[DASHBOARD]", err)
+	}
 	context.ViewTemplate = "dashboard"
 	context.Title = "RedSkull: Dashboard"
 	context.Refresh = true
@@ -37,7 +40,7 @@ func Dashboard(c web.C, w http.ResponseWriter, r *http.Request) {
 	var emet ErrorMetrics
 	errgroups := make(map[string][]interface{})
 	log.Print("dashboard calling GetPodsInError")
-	pods := ManagedConstellation.GetPodsInError()
+	pods := context.Constellation.GetPodsInError()
 	log.Printf("Dashboard error pod call %v from dash call", time.Since(dash_start))
 	emet.TotalErrorPods = len(pods)
 	counted := make(map[string]interface{})
