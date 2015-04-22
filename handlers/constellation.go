@@ -312,7 +312,6 @@ func APIGetPod(c web.C, w http.ResponseWriter, r *http.Request) {
 		pod, err := context.Constellation.GetPod(podname)
 		if pod.Name > "" {
 			response.Status = "COMPLETE"
-			log.Printf("Pod data: %+v", pod)
 			response.Data = pod
 		} else {
 			log.Print("API:GP Error:", err)
