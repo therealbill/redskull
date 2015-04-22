@@ -50,7 +50,7 @@ func (r *RPC) AddPod(pr NewPodRequest, resp *actions.RedisPod) (err error) {
 		err = errors.New("MonitorPod call returned false, no error")
 	}
 	time.Sleep(time.Second * 2)
-	pod, err := r.constellation.GetPod(podname)
+	pod, err := r.constellation.GetPod(pr.Name)
 	if pod == nil || pod.Name == "" {
 		err = errors.New("New Pod Not found")
 		return err
