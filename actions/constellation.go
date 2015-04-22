@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -451,9 +452,8 @@ func (c *Constellation) MonitorPod(podname, address string, port, quorum int, au
 }
 
 // RemovePod removes a pod from each of it's sentinels.
-// TODO: It neds removed from the sentinel's and the constellations'
-// mappings as well
-func (c *Constellation) RemovePod(podname string) (ok bool, err error) {
+func (c *Constellation) RemovePod(podname string) (bool, error) {
+	var err error
 	sentinels := c.GetSentinelsForPod(podname)
 	if err != nil {
 		log.Print("RemovePod GetAllSentinels err: ", err)
@@ -467,21 +467,12 @@ func (c *Constellation) RemovePod(podname string) (ok bool, err error) {
 			log.Printf("Unable to remove %s from %s. Error:%s", podname, sentinel.Name, err.Error())
 		}
 	}
-	index := -1
-	for i, pod := range c.PodsInError {
-		if pod.Name == podname {
-			index = i
-			break
-		}
-	}
-	log.Printf("Need to remove pod %d from c.PodsInError", index)
-
 	delete(c.SentinelConfig.ManagedPodConfigs, podname)
 	delete(c.PodMap, podname)
 	delete(c.PodToSentinelsMap, podname)
 	delete(c.LocalPodMap, podname)
 	delete(c.RemotePodMap, podname)
-	return ok, err
+	return true, err
 }
 
 // Initiates a failover on a given pod.
@@ -988,6 +979,16 @@ func (c *Constellation) BalancePod(pod *RedisPod) {
 			c.RemotePodMap[pod.Name] = pod
 		}
 		log.Printf("Rebalance of %s completed, it now has %d sentinels", pod.Name, pod.SentinelCount)
+	} else if pod.SentinelCount > neededTotal {
+		remove := pod.SentinelCount - neededTotal
+		log.Printf("[%s] has too many sentinels, reducing sentinel count by %d", pod.Name, remove)
+		index := rand.Intn(neededTotal)
+		sentinel := sentinels[index]
+		ok, err := sentinel.RemovePod(pod.Name)
+		if !ok || err != nil {
+			log.Printf("Unable to remove %s from %s. Err:", pod.Name, sentinel.Name)
+		}
+		c.ResetPod(pod.Name, true)
 	}
 }
 

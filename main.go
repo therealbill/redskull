@@ -64,6 +64,7 @@ type LaunchConfig struct {
 	SentinelHostAddress string
 	TemplateDirectory   string
 	NodeRefreshInterval float64
+	RPCPort             int
 }
 
 var config LaunchConfig
@@ -87,6 +88,11 @@ func init() {
 			config.Port = 8000
 		}
 	}
+
+	if config.RPCPort == 0 {
+		config.RPCPort = config.Port + 1
+	}
+
 	ps := fmt.Sprintf("%s:%d", config.IP, config.Port)
 	log.Printf("binding to '%s'", ps)
 	flag.Set("bind", ps)
@@ -144,6 +150,8 @@ func main() {
 	log.Printf("Main Cache Stats: %+v", mc.AuthCache.GetStats())
 	log.Printf("Hot Cache Stats: %+v", mc.AuthCache.GetHotStats())
 	handlers.SetConstellation(mc)
+
+	go ServeRPC()
 
 	// HTML Interface URLS
 	goji.Get("/constellation/", handlers.ConstellationInfoHTML) // Needs moved? instance tree?
