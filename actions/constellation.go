@@ -803,6 +803,7 @@ func (c *Constellation) LoadNodesForPod(pod *RedisPod, sentinel *Sentinel) {
 		}
 		return
 	}
+	pod.ValidAuth = true
 	slaves := node.Slaves
 	for _, si := range slaves {
 		c.GetNode(si.Name, pod.Name, pod.AuthToken)
