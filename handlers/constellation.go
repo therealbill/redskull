@@ -324,6 +324,5 @@ func APIGetPod(c web.C, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Print("Unable to pack JSON, err:", err)
 	}
-	log.Print(packed)
 	w.Write(packed)
 }
