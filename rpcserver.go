@@ -7,20 +7,15 @@ import (
 	"log"
 	"net"
 	"net/rpc"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/therealbill/libredis/client"
 	"github.com/therealbill/redskull/actions"
 	"github.com/therealbill/redskull/handlers"
+	"github.com/therealbill/redskull/rpcclient"
 )
-
-type NewPodRequest struct {
-	Name   string
-	IP     string
-	Port   int
-	Quorum int
-	Auth   string
-}
 
 type Item struct {
 	key  string
@@ -38,6 +33,66 @@ func badContextError(err error) {
 	}
 }
 
+// AddSlaveToPod is used for adding a new slave to an existing pod.
+// TODO: technically the actual implementation should be moved into the actions
+// package and the UI's handlers package can then also call it. As it is, it is
+// also implemented there.
+func (r *RPC) AddSlaveToPod(nsr rsclient.AddSlaveToPodRequest, resp *bool) error {
+	pod, err := r.constellation.GetPod(nsr.Pod)
+	if err != nil {
+		return errors.New("Pod not found")
+	}
+	name := fmt.Sprintf("%s:%d", nsr.SlaveIP, nsr.SlavePort)
+	new_slave, err := client.DialWithConfig(&client.DialConfig{Address: name, Password: nsr.SlaveAuth})
+	defer new_slave.ClosePool()
+	if err != nil {
+		log.Print("ERR: Dialing slave -", err)
+		return errors.New("Server was unable to connect to slave")
+	}
+	err = new_slave.SlaveOf(pod.Info.IP, fmt.Sprintf("%d", pod.Info.Port))
+	if err != nil {
+		log.Printf("Err: %v", err)
+		if strings.Contains(err.Error(), "Already connected to specified master") {
+			return errors.New("Already connected to specified master")
+		}
+	}
+
+	new_slave.ConfigSet("masterauth", pod.AuthToken)
+	new_slave.ConfigSet("requirepass", pod.AuthToken)
+	pod.Master.LastUpdateValid = false
+	r.constellation.PodMap[pod.Name] = pod
+	*resp = true
+	return err
+}
+
+func (r *RPC) CheckPodAuth(podname string, resp *map[string]bool) error {
+	pod, err := r.constellation.GetPod(podname)
+	if err != nil || pod == nil {
+		log.Print("No pod. Error: ", err)
+		return err
+	}
+	psresults := make(map[string]bool)
+	if pod.Master == nil {
+		mnode, err := actions.LoadNodeFromHostPort(pod.Master.Address, pod.Master.Port, pod.AuthToken)
+		if err != nil {
+			log.Print("Connection error: ", err)
+			return errors.New("Unable to connect to master nod at all. Check server logs for why")
+		}
+		pod.Master = mnode
+	}
+	mres := pod.Master.Ping()
+	psresults[pod.Master.Name] = mres
+	for _, slave := range pod.Master.Slaves {
+		log.Printf("Checking ping/auth for slave %s", slave.Name)
+		sres := slave.Ping()
+		psresults[slave.Name] = sres
+	}
+	log.Printf("Pod auth:%s", pod.AuthToken)
+	log.Printf("Pod Auth check results:%s", psresults)
+	*resp = psresults
+	return nil
+}
+
 func (r *RPC) GetSentinelsForPod(podname string, resp *[]string) error {
 	sentinels := r.constellation.GetSentinelsForPod(podname)
 	var snames []string
@@ -48,7 +103,7 @@ func (r *RPC) GetSentinelsForPod(podname string, resp *[]string) error {
 	return nil
 }
 
-func (r *RPC) AddPod(pr NewPodRequest, resp *actions.RedisPod) (err error) {
+func (r *RPC) AddPod(pr rsclient.NewPodRequest, resp *actions.RedisPod) (err error) {
 	gob.Register(actions.RedisPod{})
 	ok, err := r.constellation.MonitorPod(pr.Name, pr.IP, pr.Port, pr.Quorum, pr.Auth)
 	if err != nil {
@@ -67,8 +122,8 @@ func (r *RPC) AddPod(pr NewPodRequest, resp *actions.RedisPod) (err error) {
 	}
 	*resp = *pod
 	return err
-
 }
+
 func (r *RPC) GetPod(podname string, resp *actions.RedisPod) (err error) {
 	gob.Register(actions.RedisPod{})
 	pod, err := r.constellation.GetPod(podname)

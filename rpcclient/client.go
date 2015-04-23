@@ -10,11 +10,9 @@ import (
 	"github.com/therealbill/redskull/actions"
 )
 
-type (
-	Client struct {
-		connection *rpc.Client
-	}
-)
+type Client struct {
+	connection *rpc.Client
+}
 
 // NewPodRequest is a struct used for passing in the pod information from the
 // client
@@ -26,6 +24,15 @@ type NewPodRequest struct {
 	Auth   string
 }
 
+// AddSlaveToPodRequest is a struct for passing slave+pod information over the
+// wire
+type AddSlaveToPodRequest struct {
+	Pod       string
+	SlaveIP   string
+	SlavePort int
+	SlaveAuth string
+}
+
 // NewClient returns a client connection
 func NewClient(dsn string, timeout time.Duration) (*Client, error) {
 	connection, err := net.DialTimeout("tcp", dsn, timeout)
@@ -33,6 +40,35 @@ func NewClient(dsn string, timeout time.Duration) (*Client, error) {
 		return nil, err
 	}
 	return &Client{connection: rpc.NewClient(connection)}, nil
+}
+
+//CheckPodAuth has the server check it's authenticationn capability to the
+//master and all attached slaves for the pod. It returns a map true/false for
+//each IP in the pod. If the master can not be authed against it returns an
+//empty map.
+func (c *Client) CheckPodAuth(podname string) (map[string]bool, error) {
+	authmap := make(map[string]bool)
+	if c == nil {
+		log.Fatal("c is nil! This means you didn't call NewClient to get a working client connection")
+	}
+	err := c.connection.Call("RPC.CheckPodAuth", podname, &authmap)
+	if err != nil {
+		log.Print(err)
+		return authmap, err
+	}
+	return authmap, nil
+}
+
+//AddSlaveToPod is used to instruct Red skull to add a slave to the given pod.
+func (c *Client) AddSlaveToPod(podname, slaveip string, slaveport int, slaveauth string) (bool, error) {
+	nsr := AddSlaveToPodRequest{Pod: podname, SlaveIP: slaveip, SlavePort: slaveport, SlaveAuth: slaveauth}
+	var added bool
+	err := c.connection.Call("RPC.AddSlaveToPod", nsr, &added)
+	if err != nil {
+		log.Print(err)
+		return false, err
+	}
+	return true, nil
 }
 
 // GetSentinelsForPod(podname)  returns the number and list of sentinels for

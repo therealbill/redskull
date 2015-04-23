@@ -186,6 +186,19 @@ func (n *RedisNode) IsFree() bool {
 	return false
 }
 
+func (n *RedisNode) Ping() bool {
+	dconf := client.DialConfig{Address: n.Name, Password: n.Auth, Network: "tcp", Timeout: DialTimeout}
+	conn, err := client.DialWithConfig(&dconf)
+	if err != nil {
+		return false
+	}
+	err = conn.Ping()
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 type NodeStore struct {
 	Name         string
 	Type         string
