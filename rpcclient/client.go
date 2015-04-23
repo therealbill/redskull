@@ -16,6 +16,8 @@ type (
 	}
 )
 
+// NewPodRequest is a struct used for passing in the pod information from the
+// client
 type NewPodRequest struct {
 	Name   string
 	IP     string
@@ -24,6 +26,7 @@ type NewPodRequest struct {
 	Auth   string
 }
 
+// NewClient returns a client connection
 func NewClient(dsn string, timeout time.Duration) (*Client, error) {
 	connection, err := net.DialTimeout("tcp", dsn, timeout)
 	if err != nil {
@@ -32,6 +35,8 @@ func NewClient(dsn string, timeout time.Duration) (*Client, error) {
 	return &Client{connection: rpc.NewClient(connection)}, nil
 }
 
+// GetSentinelsForPod(podname)  returns the number and list of sentinels for
+// the given podname
 func (c *Client) GetSentinelsForPod(address string) (int, []string, error) {
 	var scount int
 	var sentinels []string
@@ -44,6 +49,8 @@ func (c *Client) GetSentinelsForPod(address string) (int, []string, error) {
 	return scount, sentinels, err
 }
 
+// AddSentinel(address) will instuct Redskull to add the sentinel at the given
+// address
 func (c *Client) AddSentinel(address string) (bool, error) {
 	var ok bool
 	err := c.connection.Call("RPC.AddSentinel", address, &ok)
@@ -55,6 +62,8 @@ func (c *Client) AddSentinel(address string) (bool, error) {
 	return ok, err
 }
 
+// AddPod(NewPodRequest) will take the information in the PodRequest and
+// instruct Redskull to add it to it's monitor list.
 func (c *Client) AddPod(name, ip string, port, quorum int, auth string) (actions.RedisPod, error) {
 	var pod actions.RedisPod
 	pr := NewPodRequest{Name: name, IP: ip, Port: port, Quorum: quorum, Auth: auth}
@@ -66,6 +75,8 @@ func (c *Client) AddPod(name, ip string, port, quorum int, auth string) (actions
 
 }
 
+// GetPod(podname) will return the actions.RedisPod type for the given pod, if
+// found.
 func (c *Client) GetPod(podname string) (actions.RedisPod, error) {
 	var pod actions.RedisPod
 	err := c.connection.Call("RPC.GetPod", podname, &pod)
@@ -75,6 +86,7 @@ func (c *Client) GetPod(podname string) (actions.RedisPod, error) {
 	return pod, err
 }
 
+//RemovePod(podname) removes the prod from Redskull and associated sentinels
 func (c *Client) RemovePod(podname string) error {
 	ok := false
 	err := c.connection.Call("RPC.RemovePod", podname, &ok)
@@ -88,6 +100,7 @@ func (c *Client) RemovePod(podname string) error {
 	return nil
 }
 
+//BalancePod will attempt to rebalance the pod's sentinels
 func (c *Client) BalancePod(podname string) error {
 	ok := false
 	err := c.connection.Call("RPC.BalancePod", podname, &ok)
