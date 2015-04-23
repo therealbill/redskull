@@ -38,6 +38,16 @@ func badContextError(err error) {
 	}
 }
 
+func (r *RPC) GetSentinelsForPod(podname string, resp *[]string) error {
+	sentinels := r.constellation.GetSentinelsForPod(podname)
+	var snames []string
+	for _, s := range sentinels {
+		snames = append(snames, s.Name)
+	}
+	*resp = snames
+	return nil
+}
+
 func (r *RPC) AddPod(pr NewPodRequest, resp *actions.RedisPod) (err error) {
 	gob.Register(actions.RedisPod{})
 	ok, err := r.constellation.MonitorPod(pr.Name, pr.IP, pr.Port, pr.Quorum, pr.Auth)

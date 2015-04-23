@@ -32,6 +32,18 @@ func NewClient(dsn string, timeout time.Duration) (*Client, error) {
 	return &Client{connection: rpc.NewClient(connection)}, nil
 }
 
+func (c *Client) GetSentinelsForPod(address string) (int, []string, error) {
+	var scount int
+	var sentinels []string
+	err := c.connection.Call("RPC.GetSentinelsForPod", address, &sentinels)
+	if err != nil {
+		log.Print(err)
+	} else {
+		scount = len(sentinels)
+	}
+	return scount, sentinels, err
+}
+
 func (c *Client) AddSentinel(address string) (bool, error) {
 	var ok bool
 	err := c.connection.Call("RPC.AddSentinel", address, &ok)
