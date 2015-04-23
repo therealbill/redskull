@@ -87,8 +87,6 @@ func (r *RPC) CheckPodAuth(podname string, resp *map[string]bool) error {
 		sres := slave.Ping()
 		psresults[slave.Name] = sres
 	}
-	log.Printf("Pod auth:%s", pod.AuthToken)
-	log.Printf("Pod Auth check results:%s", psresults)
 	*resp = psresults
 	return nil
 }
