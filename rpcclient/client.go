@@ -38,15 +38,15 @@ func NewClient(dsn string, timeout time.Duration) (*Client, error) {
 // GetSentinelsForPod(podname)  returns the number and list of sentinels for
 // the given podname
 func (c *Client) GetSentinelsForPod(address string) (int, []string, error) {
-	var scount int
+	var sc int
 	var sentinels []string
 	err := c.connection.Call("RPC.GetSentinelsForPod", address, &sentinels)
 	if err != nil {
 		log.Print(err)
 	} else {
-		scount = len(sentinels)
+		sc = len(sentinels)
 	}
-	return scount, sentinels, err
+	return sc, sentinels, err
 }
 
 // AddSentinel(address) will instuct Redskull to add the sentinel at the given
