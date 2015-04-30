@@ -82,7 +82,7 @@ func ShowPod(c web.C, w http.ResponseWriter, r *http.Request) {
 	for _, slave := range pod.Master.Slaves {
 		_, err := slave.UpdateData()
 		if err != nil {
-			log.Print("Error on slave.UpdateData() %s", err.Error())
+			log.Printf("Error on slave.UpdateData() %s", err.Error())
 			continue
 		}
 		if slave.MaxMemory <= pod.Master.MaxMemory {

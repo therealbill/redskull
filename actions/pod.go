@@ -122,7 +122,7 @@ func (rp *RedisPod) SlavesHaveEnoughMemory() bool {
 	}
 	for _, node := range rp.Master.Slaves {
 		if node == nil {
-			log.Printf("Node %s is nil!")
+			log.Printf("Node %+v is nil!", node)
 			continue
 		}
 		if node.MaxMemory < rp.Master.MaxMemory {
