@@ -12,9 +12,7 @@ import (
 func Root(c web.C, w http.ResponseWriter, r *http.Request) {
 	//ManagedConstellation.LoadPods()
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("Root", err)
-	}
+	checkContextError(err, &w)
 	context.Title = "Welcome to the Redis Manager"
 	context.ViewTemplate = "index"
 	log.Print("Index called")

@@ -13,9 +13,7 @@ func DoFailoverHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Needs changed to use templates!
 	podname := c.URLParams["name"]
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[DoFailoverHTML]", err)
-	}
+	checkContextError(err, &w)
 	context.ViewTemplate = "failover-requested"
 	context.Refresh = true
 	context.RefreshTime = 10

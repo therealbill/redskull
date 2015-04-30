@@ -18,9 +18,7 @@ import (
 // ShowPods shows the pods view page
 func ShowPods(c web.C, w http.ResponseWriter, r *http.Request) {
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[SHOWPODS]", err)
-	}
+	checkContextError(err, &w)
 	pods := context.Constellation.GetPods()
 	log.Printf("[SHOWPODS] Found %d pods", len(pods))
 	title := "Red Skull: Known Pods"
@@ -61,9 +59,7 @@ func ShowPod(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 	target := c.URLParams["podName"]
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[SHOWPODS]", err)
-	}
+	checkContextError(err, &w)
 	context.Title = fmt.Sprintf("Pod: %s", target)
 	context.ViewTemplate = "show_pod"
 	pod, err := context.Constellation.GetPod(target)
@@ -127,9 +123,7 @@ func AddSlaveHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["podName"]
 	title := fmt.Sprintf("Add Slave To Pod: %s", target)
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[ADDSLAVEHTML]", err)
-	}
+	checkContextError(err, &w)
 	pod, _ := context.Constellation.GetPod(target)
 	pod.Master.LastUpdateValid = false
 	pod.Master.UpdateData()
@@ -146,9 +140,7 @@ func AddSlaveHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 func APIAddSlave(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["podName"]
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[APIADDSLAVE]", err)
-	}
+	checkContextError(err, &w)
 	pod, _ := context.Constellation.GetPod(target)
 	body, err := ioutil.ReadAll(r.Body)
 	var response InfoResponse
@@ -197,9 +189,7 @@ func APIAddSlave(c web.C, w http.ResponseWriter, r *http.Request) {
 func BalancePodProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 	podname := c.URLParams["name"]
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[BalancePodProcessor]", err)
-	}
+	checkContextError(err, &w)
 	context.Title = "Pod Slave Result"
 	context.ViewTemplate = "balance-pod"
 	context.Refresh = true
@@ -224,9 +214,7 @@ func AddSlaveHTMLProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 	log.Print("add slave processor called")
 	podname := c.URLParams["podName"]
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[AddSlaveHTMLProcessor]", err)
-	}
+	checkContextError(err, &w)
 	pod, _ := context.Constellation.GetPod(podname)
 	context.Title = "Pod Slave Result"
 	context.ViewTemplate = "slave-added"
@@ -284,9 +272,7 @@ func ResetPodProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 	log.Print("reset pod processor called")
 	podname := c.URLParams["name"]
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[BalancePodProcessor]", err)
-	}
+	checkContextError(err, &w)
 	pod, _ := context.Constellation.GetPod(podname)
 	context.Title = "Pod Slave Result"
 	context.ViewTemplate = "reset-issued"

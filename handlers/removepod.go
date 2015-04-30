@@ -11,9 +11,7 @@ import (
 func RemovePodHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	log.Print("########### REMOVE POD PROCESSING ###########")
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[RemovePodHTML] ", err)
-	}
+	checkContextError(err, &w)
 	context.Title = "Pod Remove Result"
 	context.ViewTemplate = "removepod"
 	type results struct {

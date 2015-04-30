@@ -22,9 +22,7 @@ func AddPodHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	log.Print("add pod post called")
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[AddPodHTML] ", err)
-	}
+	checkContextError(err, &w)
 	context.Title = "Pod Add Result"
 	context.ViewTemplate = "podaddpost"
 
@@ -81,9 +79,7 @@ func AddPodHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 // AddPodForm displays the form for adding a pod
 func AddPodForm(c web.C, w http.ResponseWriter, r *http.Request) {
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[AddPodForm] ", err)
-	}
+	checkContextError(err, &w)
 	context.Title = "Add Pod to Constellation"
 	context.ViewTemplate = "addpod"
 	render(w, context)
@@ -92,9 +88,7 @@ func AddPodForm(c web.C, w http.ResponseWriter, r *http.Request) {
 // AddSentinelForm displays the form for adding a sentinel
 func AddSentinelForm(c web.C, w http.ResponseWriter, r *http.Request) {
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[AddPodForm] ", err)
-	}
+	checkContextError(err, &w)
 	context.Title = "Add Sentinel to Constellation"
 	context.ViewTemplate = "addsentinel"
 	render(w, context)
@@ -107,9 +101,7 @@ func AddSentinelHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 	log.Print("########### ADD SENTINEL FORM PROCESSING ###########")
 	r.ParseForm()
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[AddPodHTML] ", err)
-	}
+	checkContextError(err, &w)
 	context.Title = "Sentinel Add Result"
 	context.ViewTemplate = "sentineladdpost"
 	context.Refresh = true
@@ -146,9 +138,7 @@ func AddPodJSON(c web.C, w http.ResponseWriter, r *http.Request) {
 	// Change to use actions package
 	var reqdata common.MonitorRequest
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[AddPodJSON] ", err)
-	}
+	checkContextError(err, &w)
 	body, err := ioutil.ReadAll(r.Body)
 	err = json.Unmarshal(body, &reqdata)
 	if err != nil {

@@ -14,9 +14,7 @@ import (
 // ShowNodes shows the node listing page
 func ShowNodes(c web.C, w http.ResponseWriter, r *http.Request) {
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[SHOWNODES]", err)
-	}
+	checkContextError(err, &w)
 	//NodeMaster.LoadNodes()
 	context.Data = context.Constellation.NodeMap
 	context.Title = "Red Skull: Known Nodes"
@@ -29,9 +27,7 @@ func ShowNode(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["name"]
 	title := fmt.Sprintf("Node: %s", target)
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[SHOWNODES]", err)
-	}
+	checkContextError(err, &w)
 	context.Title = title
 	context.ViewTemplate = "show-node"
 	podname := context.Constellation.NodeNameToPodMap[target]
@@ -47,9 +43,7 @@ func AddNode(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["nodeName"]
 	node := NodeMaster.GetNode(target)
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[ADDNODE]", err)
-	}
+	checkContextError(err, &w)
 	context.Title = fmt.Sprintf("Add Node %s", target)
 	context.ViewTemplate = "add-node-form"
 	context.NodeMaster = NodeMaster
@@ -62,9 +56,7 @@ func GetNodeJSON(c web.C, w http.ResponseWriter, r *http.Request) {
 	target := c.URLParams["name"]
 	//node := NodeMaster.GetNode(target)
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[GetNodeJSON]", err)
-	}
+	checkContextError(err, &w)
 	podname := context.Constellation.NodeNameToPodMap[target]
 	log.Printf("Getting node for pod: %s", podname)
 	node, _ := context.Constellation.GetNode(target, podname, "")
@@ -89,9 +81,7 @@ func AddNodeHTMLProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 	nodename := c.URLParams["nodeName"]
 	node := NodeMaster.GetNode(nodename)
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[GetNodeJSON]", err)
-	}
+	checkContextError(err, &w)
 	context.Title = "Node Node Result"
 	context.ViewTemplate = "slave-added"
 	context.NodeMaster = NodeMaster

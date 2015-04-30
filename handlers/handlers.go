@@ -191,7 +191,18 @@ func throwJSONParseError(req *http.Request) (retcode int, userMessage string) {
 	return
 }
 
-// handleFailoverError is/wa sused to handle sentinel being unable to failover.
+//checkContextError is used to valiate we received a valid PageContext back
+//from the call, returning an error i, re, reqqf not
+func checkContextError(err error, w *http.ResponseWriter) (retcode int, userMessage string) {
+	if err != nil {
+		log.Printf("Context error: %s", err.Error())
+		http.Error(*w, "Context not initialized. See server log for details", http.StatusInternalServerError)
+		return 500, "Server Context Error"
+	}
+	return 200, ""
+}
+
+// handleFailoverError is/was used to handle sentinel being unable to failover.
 // This is going to need to be used to track times when a call initiated a
 // failover that failed.
 func handleFailoverError(pod string, req *http.Request, orig_err error) (retcode int, userMessage string) {
