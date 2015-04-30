@@ -2,3 +2,6 @@ language: go
 
 go:
   - 1.4.2
+
+notifications:
+  slack: thebaldguy:nUVn1pY1Owp88utA4dprrCMO
