@@ -148,3 +148,16 @@ func (c *Client) BalancePod(podname string) error {
 	}
 	return nil
 }
+
+//GetPodList returns a list of known pods
+func (c *Client) GetPodList() ([]string, error) {
+	var pods []string
+	err := c.connection.Call("RPC.GetPodList", true, &pods)
+	if err != nil {
+		if err != nil {
+			log.Printf("Error: %s", err.Error())
+		}
+		return pods, errors.New("Was unable to get list of pods")
+	}
+	return pods, err
+}

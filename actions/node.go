@@ -127,7 +127,6 @@ func (n *RedisNode) UpdateData() (bool, error) {
 	// Pull Latency data
 	res, _ = conn.ConfigGet("latency-monitor-threshold")
 	n.LatencyThreshold, err = strconv.Atoi(res["latency-monitor-threshold"])
-	fmt.Print(res["latency-monitor-threshold"])
 	if err == nil && n.LatencyThreshold > 0 {
 		n.LatencyHistory, _ = conn.LatencyHistory("command")
 		n.LatencyHistoryFastCommand, _ = conn.LatencyHistory("fast-command")
