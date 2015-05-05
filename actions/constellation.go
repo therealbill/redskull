@@ -2,6 +2,7 @@ package actions
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -610,7 +611,7 @@ func (c *Constellation) GetAvailableSentinels(podname string, needed int) (senti
 	pcount := func(s1, s2 *Sentinel) bool { return s1.PodCount() < s2.PodCount() }
 	By(pcount).Sort(all)
 	if len(all) < needed {
-		log.Fatalf("WTF? needed %d sentinels but only %d available?", needed, len(sentinels))
+		log.Printf("WTF? needed %d sentinels but only %d available?", needed, len(sentinels))
 	}
 	// time to do some tricky testing to ensure we get valid sentinels: ones
 	// which do not already have this pod on them
@@ -1388,4 +1389,37 @@ func GetAddressPair(astring string) (host string, port int, err error) {
 		log.Printf("Unable to convert %s to port integer!", apair[1])
 	}
 	return
+}
+
+//ValidatePodSentinels will attempt to connect to each sentinel listed for a pod
+// and pull the master info from it. This is to validate we can 1) connect to
+// it, and 2) it actually has the pod in it's list
+func (c *Constellation) ValidatePodSentinels(podname string) (map[string]bool, error) {
+	_, exists := c.PodMap[podname]
+	checks := make(map[string]bool)
+	if !exists {
+		return checks, errors.New("Pod not found")
+	}
+	allvalid := true
+	//PodToSentinelsMap   map[string][]*Sentinel
+	for _, s := range c.PodToSentinelsMap[podname] {
+		sname := s.Name
+		sc, err := client.DialWithConfig(&client.DialConfig{Address: s.Name})
+		if err != nil {
+			checks[sname] = false
+			allvalid = false
+			continue
+		}
+		_, err = sc.SentinelGetMaster(podname)
+		if err != nil {
+			checks[sname] = false
+			allvalid = false
+			continue
+		}
+		checks[sname] = true
+	}
+	if !allvalid {
+		return checks, errors.New("Not all sentinels validated")
+	}
+	return checks, nil
 }

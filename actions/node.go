@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -56,7 +57,8 @@ func (n *RedisNode) UpdateData() (bool, error) {
 	// If the last update was successful and it has been less than 10 seconds,
 	// don't bother.
 	if n == nil {
-		log.Fatal("WTF?! a nill node?")
+		log.Print("WTF?! a nill node?")
+		return false, errors.New("Node given does not exist in the system. SOmewhere there is a bug.")
 	}
 	if n.LastUpdateValid {
 		elapsed := time.Since(n.LastUpdate)
@@ -344,7 +346,7 @@ func (nm *NodeStore) GetNodes() (nodes []*RedisNode) {
 
 func (nm *NodeStore) GetNode(name string) (node *RedisNode) {
 	if len(name) == 0 {
-		log.Fatal("Called w/empty name")
+		log.Print("Called w/empty name")
 	}
 	for _, node := range nm.Nodes {
 		if node.Name == name {

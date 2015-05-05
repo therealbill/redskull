@@ -158,6 +158,20 @@ func (r *RPC) BalancePod(podname string, resp *bool) (err error) {
 	return err
 }
 
+func (r *RPC) ValidatePodSentinels(podname string, resp *map[string]bool) error {
+	pod, err := r.constellation.GetPod(podname)
+	res := make(map[string]bool)
+	if pod == nil || pod.Name == "" {
+		err = errors.New("Pod Not found")
+		*resp = res
+		return err
+	}
+	results, err := r.constellation.ValidatePodSentinels(podname)
+	*resp = results
+	return err
+
+}
+
 func NewRPC() *RPC {
 	context, err := handlers.NewPageContext()
 	badContextError(err)
@@ -173,6 +187,5 @@ func ServeRPC() {
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
-
 	rpc.Accept(l)
 }

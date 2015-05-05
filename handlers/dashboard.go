@@ -27,9 +27,7 @@ func Dashboard(c web.C, w http.ResponseWriter, r *http.Request) {
 	dash_start := time.Now()
 	log.Print("Dashboard requested %v", dash_start)
 	context, err := NewPageContext()
-	if err != nil {
-		log.Fatal("[DASHBOARD]", err)
-	}
+	checkContextError(err, &w)
 	context.ViewTemplate = "dashboard"
 	context.Title = "RedSkull: Dashboard"
 	context.Refresh = true
