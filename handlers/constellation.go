@@ -35,6 +35,7 @@ func ConstellationInfoHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 		log.Fatal("[ConstellationInfoHTML]", err)
 	}
 	subtitle := context.Constellation.Name
+	context.Constellation.GetStats()
 	context.Title = "Constellation Information"
 	context.SubTitle = subtitle
 	context.ViewTemplate = "show_constellation"
