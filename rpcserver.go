@@ -180,6 +180,18 @@ func NewRPC() *RPC {
 	}
 }
 
+func (r *RPC) GetPodList(verbose bool, resp *[]string) (err error) {
+	var podlist []string
+	for k, _ := range r.constellation.PodMap {
+		if verbose {
+			log.Printf("found pod %s", k)
+		}
+		podlist = append(podlist, k)
+	}
+	*resp = podlist
+	return nil
+}
+
 func ServeRPC() {
 	rpc.Register(NewRPC())
 	rpc_on := fmt.Sprintf("%s:%d", config.BindAddress, config.RPCPort)

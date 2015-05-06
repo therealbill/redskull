@@ -202,8 +202,7 @@ func (s *Sentinel) MonitorPod(podname, address string, port, quorum int, auth st
 		return rp, err
 	}
 	if auth > "" {
-		ok := conn.SentinelSetString(podname, "auth-pass", auth)
-		log.Print(ok)
+		conn.SentinelSetString(podname, "auth-pass", auth)
 	}
 	s.LoadPods()
 	rp, err = s.GetPod(podname)

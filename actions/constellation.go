@@ -102,7 +102,7 @@ func GetConstellation(name, cfg, group, sentinelAddress string) (Constellation, 
 	con.LoadRemoteSentinels()
 	con.Balanced = true
 	con.PeerList = make(map[string]string)
-	//log.Printf("Metrics: %+v", con.GetStats())
+	con.GetStats()
 	return con, nil
 }
 
@@ -140,23 +140,18 @@ func (c *Constellation) GetStats() ConstellationStats {
 				log.Printf("Unable to get master for pod '%s', ERR='%s'", pod.Name, err)
 				continue
 			}
-			metrics.NodeCount++
-			for _, slave := range master.Slaves {
-				metrics.NodeCount++
-				metrics.TotalNodeMemory += int64(slave.MaxMemory)
-			}
-			podmem := int64(master.MaxMemory)
-			metrics.TotalPodMemory += podmem
-			metrics.TotalNodeMemory += int64(podmem)
-			metrics.PodSizes[podmem]++
-		} else {
-			podmem := int64(master.MaxMemory)
-			metrics.TotalPodMemory += podmem
-			metrics.TotalNodeMemory += int64(podmem)
-			metrics.PodSizes[podmem]++
 		}
+		master.UpdateData()
+		metrics.NodeCount++
+		for _, slave := range master.Slaves {
+			metrics.NodeCount++
+			metrics.TotalNodeMemory += int64(slave.MaxMemory)
+		}
+		podmem := int64(master.MaxMemory)
+		metrics.TotalPodMemory += podmem
+		metrics.TotalNodeMemory += int64(podmem)
+		metrics.PodSizes[podmem]++
 	}
-	log.Printf("Metrics: %+v", metrics)
 	c.Metrics = metrics
 	return metrics
 }
