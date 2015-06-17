@@ -17,6 +17,7 @@ import (
 
 	"github.com/golang/groupcache"
 	"github.com/therealbill/libredis/client"
+	"github.com/therealbill/libredis/structures"
 )
 
 const GCPORT = "8008"
@@ -1007,9 +1008,9 @@ func (c *Constellation) Balance() {
 	c.Balanced = true
 }
 
-// Getmaster returns the current client.MasterAddress struct for the given
+// Getmaster returns the current structures.MasterAddress struct for the given
 // pod
-func (c *Constellation) GetMaster(podname string) (master client.MasterAddress, err error) {
+func (c *Constellation) GetMaster(podname string) (master structures.MasterAddress, err error) {
 	sentinels, _ := c.GetAllSentinels()
 	for _, sentinel := range sentinels {
 		master, err := sentinel.GetMaster(podname)
@@ -1074,7 +1075,7 @@ func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
 }
 
 // GetSlaves return a list of client.SlaveInfo structs for the given pod
-func (c *Constellation) GetSlaves(podname string) (slaves []client.SlaveInfo, err error) {
+func (c *Constellation) GetSlaves(podname string) (slaves []structures.SlaveInfo, err error) {
 	sentinels, err := c.GetAllSentinels()
 	for _, sentinel := range sentinels {
 		slaves, err = sentinel.GetSlaves(podname)

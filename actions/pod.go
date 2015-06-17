@@ -8,15 +8,15 @@ import (
 	"log"
 	"strings"
 
-	"github.com/therealbill/libredis/client"
 	"github.com/therealbill/libredis/info"
+	"github.com/therealbill/libredis/structures"
 )
 
 // RedisPod is the construct used for holding data about a Redis Pod and taking
 // action against it.
 type RedisPod struct {
 	Name                  string
-	Info                  client.MasterInfo
+	Info                  structures.MasterInfo
 	Slaves                []info.InfoSlaves
 	Master                *RedisNode
 	SentinelCount         int
@@ -45,7 +45,7 @@ func NewPod(name, address string, port int, auth string) (rp RedisPod, err error
 // NewMasterFromMasterInfo accepts a MasterInfo struct from libredis/client
 // combined with an authentication token to use and returns a RedisPod
 // instance.
-func NewMasterFromMasterInfo(mi client.MasterInfo, authtoken string) (rp RedisPod, err error) {
+func NewMasterFromMasterInfo(mi structures.MasterInfo, authtoken string) (rp RedisPod, err error) {
 	rp.Name = mi.Name
 	rp.Info = mi
 	rp.AuthToken = authtoken

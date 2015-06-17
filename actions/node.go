@@ -10,7 +10,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/therealbill/libredis/client"
-	"github.com/therealbill/libredis/info"
+	"github.com/therealbill/libredis/structures"
 )
 
 type RedisNode struct {
@@ -19,7 +19,7 @@ type RedisNode struct {
 	Port                      int
 	MaxMemory                 int
 	LastStart                 time.Time
-	Info                      info.RedisInfoAll
+	Info                      structures.RedisInfoAll
 	Slaves                    []*RedisNode
 	AOFEnabled                bool
 	SaveEnabled               bool

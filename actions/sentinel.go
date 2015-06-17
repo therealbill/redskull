@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/therealbill/libredis/client"
-	"github.com/therealbill/libredis/info"
+	"github.com/therealbill/libredis/structures"
 )
 
 type Sentinel struct {
@@ -18,7 +18,7 @@ type Sentinel struct {
 	Port           int
 	Connection     *client.Redis
 	Errors         int
-	Info           info.RedisInfoAll
+	Info           structures.RedisInfoAll
 	PodMap         map[string]RedisPod
 	Pods           []RedisPod
 	PodsInError    []RedisPod
@@ -26,7 +26,7 @@ type Sentinel struct {
 	DialConfig     client.DialConfig
 }
 
-func (s *Sentinel) GetMasters() (master []client.MasterInfo, err error) {
+func (s *Sentinel) GetMasters() (master []structures.MasterInfo, err error) {
 	conn, err := client.Dial(s.Host, s.Port)
 	if err != nil {
 		return
@@ -127,7 +127,7 @@ func (s *Sentinel) ResetPod(podname string) {
 	}
 }
 
-func (s *Sentinel) GetSlaves(podname string) (slaves []client.SlaveInfo, err error) {
+func (s *Sentinel) GetSlaves(podname string) (slaves []structures.SlaveInfo, err error) {
 	// TODO: Bubble errors to out custom error package
 	// See DoFailover for an example
 	conn, err := client.Dial(s.Host, s.Port)
@@ -177,7 +177,7 @@ func (s *Sentinel) GetConnection() (conn *client.Redis, err error) {
 	return
 }
 
-func (s *Sentinel) GetMaster(podname string) (master client.MasterAddress, err error) {
+func (s *Sentinel) GetMaster(podname string) (master structures.MasterAddress, err error) {
 	if s.Connection == nil {
 		log.Fatal("s.Connection is nil, connection not initialzed!")
 	}

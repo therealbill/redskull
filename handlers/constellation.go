@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/therealbill/airbrake-go"
-	"github.com/therealbill/libredis/client"
+	"github.com/therealbill/libredis/structures"
 	"github.com/therealbill/redskull/common"
 	"github.com/zenazn/goji/web"
 )
@@ -164,7 +164,7 @@ func APIGetMaster(c web.C, w http.ResponseWriter, r *http.Request) {
 		response.Status = "COMMANDERROR"
 		response.StatusMessage = err.Error()
 	} else {
-		var addr client.MasterAddress
+		var addr structures.MasterAddress
 		addr = master
 		response.Data = addr
 		if len(addr.Host) == 0 {
@@ -215,9 +215,7 @@ func APIMonitorPod(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func APIRemovePod(c web.C, w http.ResponseWriter, r *http.Request) {
-	var (
-		response InfoResponse
-	)
+	var response InfoResponse
 	podName := c.URLParams["podName"]
 	log.Print("Removing pod:", podName)
 

@@ -1,0 +1,49 @@
+{
+	"ImportPath": "github.com/therealbill/redskull",
+	"GoVersion": "go1.4.1",
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go-uuid/uuid",
+			"Comment": "null-15",
+			"Rev": "35bc42037350f0078e3c974c6ea690f1926603ab"
+		},
+		{
+			"ImportPath": "github.com/dustin/go-humanize",
+			"Rev": "145fabdb1ab757076a70a886d092a3af27f66f4c"
+		},
+		{
+			"ImportPath": "github.com/golang/groupcache",
+			"Rev": "86ced4a88341076f89d57b6937a5c91ec1762ee3"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "7f07925444bb51fa4cf9dfe6f7661876f8852275"
+		},
+		{
+			"ImportPath": "github.com/kelseyhightower/envconfig",
+			"Comment": "v1.0.0-6-ge904934",
+			"Rev": "e9049346b6aae8e6ad500c5a4519ad029439d660"
+		},
+		{
+			"ImportPath": "github.com/therealbill/airbrake-go",
+			"Rev": "b7bc81a2d281e42715ed72a7ea7c3a1d8e7842c2"
+		},
+		{
+			"ImportPath": "github.com/therealbill/libredis/client",
+			"Rev": "9ab2d8db5c00d18d193cbbb396e9d73bc2924866"
+		},
+		{
+			"ImportPath": "github.com/therealbill/libredis/info",
+			"Rev": "9ab2d8db5c00d18d193cbbb396e9d73bc2924866"
+		},
+		{
+			"ImportPath": "github.com/therealbill/libredis/structures",
+			"Rev": "9ab2d8db5c00d18d193cbbb396e9d73bc2924866"
+		},
+		{
+			"ImportPath": "github.com/zenazn/goji",
+			"Comment": "v0.9.0-15-g0276f3f",
+			"Rev": "0276f3f3fb609aabf8d9ba7aea10c80ec979989d"
+		}
+	]
+}
