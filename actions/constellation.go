@@ -8,16 +8,15 @@ import (
 	"log"
 	"math/rand"
 	"net"
-	"net/http"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/golang/groupcache"
 	"github.com/therealbill/libredis/client"
 	"github.com/therealbill/libredis/structures"
+	"github.com/therealbill/redskull/common"
 )
 
 const GCPORT = "8008"
@@ -61,10 +60,6 @@ type Constellation struct {
 	SentinelConfig      LocalSentinelConfig
 	PodToSentinelsMap   map[string][]*Sentinel
 	Balanced            bool
-	AuthCache           *PodAuthCache
-	Groupname           string
-	Peers               *groupcache.HTTPPool
-	PeerList            map[string]string
 	PodAuthMap          map[string]string
 	NodeMap             map[string]*RedisNode
 	NodeNameToPodMap    map[string]string
@@ -92,18 +87,15 @@ func GetConstellation(name, cfg, group, sentinelAddress string) (Constellation, 
 	con.LocalPodMap = make(map[string]*RedisPod)
 	con.RemotePodMap = make(map[string]*RedisPod)
 	con.NodeMap = make(map[string]*RedisNode)
-	con.PeerList = make(map[string]string)
 	con.NodeNameToPodMap = make(map[string]string)
 	con.ConfiguredSentinels = make(map[string]interface{})
-	con.Groupname = group
 	con.LocalOverrides = SentinelOverrides{BindAddress: sentinelAddress}
 	con.SentinelConfigName = cfg
 	con.LoadSentinelConfigFile()
 	con.LoadLocalPods()
 	con.LoadRemoteSentinels()
 	con.Balanced = true
-	con.PeerList = make(map[string]string)
-	con.GetStats()
+	//con.GetStats()
 	return con, nil
 }
 
@@ -183,7 +175,7 @@ func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, er
 		return node, err
 	}
 	if auth == "" {
-		log.Print("Auth was blank when called, trying to determine it from authcache - ", podname)
+		log.Print("Auth was blank when called, trying to determine it from store - ", podname)
 		auth = c.GetPodAuth(podname)
 	}
 	host, port, err := GetAddressPair(name)
@@ -200,43 +192,13 @@ func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, er
 	return
 }
 
-// GetPodAuth will return an authstring from the local config and/or the
-// groupcache group if it is in there. This probably still needs a bit of work
-// to be reliable enough for me.
+// GetPodAuth will return an authstring from the store, or local configs if not in store
 func (c *Constellation) GetPodAuth(podname string) string {
-	return c.PodAuthMap[podname]
-	//return c.AuthCache.Get(podname)
-}
-
-// StartCache is used to start up the groupcache mechanism
-func (c *Constellation) StartCache() {
-	log.Print("Starting AuthCache")
-	var peers []string
-	if c.PeerList == nil {
-		log.Print("Initializing PeerList")
-		c.PeerList = make(map[string]string)
+	auth, err := common.Backingstore.Get(fmt.Sprintf("pods/%s/auth", podname))
+	if err != nil {
+		return c.PodAuthMap[podname]
 	}
-
-	for _, peer := range c.PeerList {
-		log.Printf("Assigning peer '%s'", peer)
-		if peer > "" {
-			peers = append(peers, "http://"+peer+":"+GCPORT)
-		}
-	}
-	c.Peers.Set(peers...)
-	var authcache = groupcache.NewGroup(c.Groupname, 64<<20, groupcache.GetterFunc(
-		func(ctx groupcache.Context, key string, dest groupcache.Sink) error {
-			pod := key
-			auth := c.GetAuthForPodFromConfig(pod)
-			if auth > "" {
-				dest.SetString(auth)
-				return nil
-			}
-			err := fmt.Errorf("Found no value for auth on pod %s, not storing anything", pod)
-			return err
-		}))
-	c.AuthCache = NewCache(authcache)
-
+	return string(auth.Value)
 }
 
 // LoadLocalPods uses the PodConfigs read from the sentinel config file and
@@ -295,12 +257,28 @@ func (c *Constellation) LoadLocalPods() error {
 	local_config_count := len(c.SentinelConfig.ManagedPodConfigs)
 	ctr := 0
 	for pname, pconfig := range c.SentinelConfig.ManagedPodConfigs {
+		log.Printf("pconfig: %+v\n", pconfig)
+		keybase := fmt.Sprintf("pods/%s/", pname)
+		common.Backingstore.Put(keybase+"auth", []byte(pconfig.AuthToken), nil)
+		common.Backingstore.Put(keybase+"master/ip", []byte(pconfig.IP), nil)
+		common.Backingstore.Put(keybase+"master/port", []byte(fmt.Sprintf("%d", pconfig.Port)), nil)
+		common.Backingstore.Put(keybase+"quorum", []byte(fmt.Sprintf("%d", pconfig.Quorum)), nil)
+		var sentinels_string string
+		for k, _ := range pconfig.Sentinels {
+			if sentinels_string != "" {
+				sentinels_string += ","
+			}
+			sentinels_string += k
+		}
+		log.Printf("SentinelConfig: %+v\n", c.SentinelConfig)
+		common.Backingstore.Put(keybase+"sentinels/"+c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port), []byte(sentinels_string), nil)
 		mi, err := c.LocalSentinel.GetMaster(pname)
 		if err != nil {
 			log.Printf("WARNING: Pod '%s' in config but not found when talking to the sentinel controller. Err: '%s'", pname, err)
 			continue
 		}
 		address := fmt.Sprintf("%s:%d", mi.Host, mi.Port)
+		common.Backingstore.Put(keybase+"master/address", []byte(address), nil)
 		pod, err := c.LocalSentinel.GetPod(pname)
 		master, err := c.GetNode(address, pname, pconfig.AuthToken)
 		//c.GetNode(address, pname, pconfig.AuthToken)
@@ -644,18 +622,6 @@ func (c *Constellation) AddSentinelByAddress(address string) error {
 	return c.AddSentinel(ip, port)
 }
 
-// SetPeers is used when the peers list for groupcache may have changed
-func (c *Constellation) SetPeers() error {
-	var peers []string
-	for _, peer := range c.PeerList {
-		if peer > "" {
-			peers = append(peers, "http://"+peer+":"+GCPORT)
-		}
-	}
-	c.Peers.Set(peers...)
-	return nil
-}
-
 // LoadRemoteSentinels interrogates all known remote sentinels and crawls
 // the results to explore non-local configuration
 func (c *Constellation) LoadRemoteSentinels() {
@@ -709,19 +675,6 @@ func (c *Constellation) AddSentinel(ip string, port int) error {
 	if exists {
 		return nil
 	}
-	// Now to add to the PeerList for GroupCache
-	// For now we are using just the IP and expect port 8000 by convention
-	// This will change to serf/consul when that part is added I expect
-	if c.PeerList == nil {
-		c.PeerList = make(map[string]string)
-	}
-	_, exists = c.PeerList[address]
-	if !exists {
-		log.Print("New Peer: ", address)
-		c.PeerList[address] = ip
-		c.SetPeers()
-	}
-	c.PeerList[address] = ip
 	sentinel.Name = address
 	sentinel.Host = ip
 	sentinel.Port = port
@@ -1157,27 +1110,6 @@ func (c *Constellation) extractSentinelDirective(entries []string) error {
 		sentinel_address := entries[2] + ":" + entries[3]
 		pc := c.SentinelConfig.ManagedPodConfigs[podname]
 		pc.Sentinels[sentinel_address] = ""
-		if c.Peers == nil {
-			// This means the sentinel config has no bind statement
-			// So we will pull the local IP and use it
-			// I don't like this but dont' have a great option either.
-			myhostname, err := os.Hostname()
-			if err != nil {
-				log.Print(err)
-			}
-			myip, err := net.LookupHost(myhostname)
-			if err != nil {
-				log.Print(err)
-			}
-			c.LocalSentinel.Host = myip[0]
-			log.Printf("NO BIND STATEMENT FOUND. USING: '%s'", c.LocalSentinel.Host)
-			me := "http://" + c.SentinelConfig.Host + ":" + GCPORT
-			c.Peers = groupcache.NewHTTPPool(me)
-			c.PeerList[c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port)] = c.SentinelConfig.Host
-			c.SetPeers()
-			go http.ListenAndServe(c.SentinelConfig.Host+":"+GCPORT, http.HandlerFunc(c.Peers.ServeHTTP))
-			c.StartCache()
-		}
 		c.ConfiguredSentinels[sentinel_address] = sentinel_address
 		return nil
 
@@ -1235,14 +1167,6 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 					log.Printf("Overriding Sentinel BIND directive '%s' with '%s'", entries[1], c.LocalOverrides.BindAddress)
 				} else {
 					c.SentinelConfig.Host = entries[1]
-					if c.Peers == nil {
-						me := "http://" + c.SentinelConfig.Host + ":" + GCPORT
-						c.Peers = groupcache.NewHTTPPool(me)
-						c.PeerList[c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port)] = c.SentinelConfig.Host
-						c.SetPeers()
-						go http.ListenAndServe(c.SentinelConfig.Host+":"+GCPORT, http.HandlerFunc(c.Peers.ServeHTTP))
-						c.StartCache()
-					}
 				}
 				log.Printf("Local sentinel is listening on IP %s", c.SentinelConfig.Host)
 			case "":
@@ -1251,29 +1175,6 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 					if c.LocalOverrides.BindAddress > "" {
 						c.SentinelConfig.Host = c.LocalOverrides.BindAddress
 						log.Printf("Local sentinel is listening on IP %s", c.SentinelConfig.Host)
-					} else {
-						if c.Peers == nil {
-							// This means the sentinel config has no bind statement
-							// So we will pull the local IP and use it
-							// I don't like this but dont' have a great option either.
-							myhostname, err := os.Hostname()
-							if err != nil {
-								log.Print(err)
-							}
-							myip, err := net.LookupHost(myhostname)
-							if err != nil {
-								log.Print(err)
-							}
-							log.Printf("myip: %+v", myip)
-							c.LocalSentinel.Host = myip[0]
-							log.Printf("NO BIND STATEMENT FOUND. USING: '%s'", c.LocalSentinel.Host)
-							me := "http://" + c.SentinelConfig.Host + ":" + GCPORT
-							c.Peers = groupcache.NewHTTPPool(me)
-							c.PeerList[c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port)] = c.SentinelConfig.Host
-							c.SetPeers()
-							go http.ListenAndServe(c.SentinelConfig.Host+":"+GCPORT, http.HandlerFunc(c.Peers.ServeHTTP))
-							c.StartCache()
-						}
 					}
 					if c.Name == "" {
 						c.Name = fmt.Sprintf("%s:%d", c.SentinelConfig.Host, c.SentinelConfig.Port)
@@ -1346,37 +1247,6 @@ func (s *sentinelSorter) Swap(i, j int) {
 // Less is part of sort.Interface. It is implemented by calling the "by" closure in the sorter.
 func (s *sentinelSorter) Less(i, j int) bool {
 	return s.by(s.sentinels[i], s.sentinels[j])
-}
-
-// PodAuthCache is a struct used for groupcache to propogate
-// authentication informaton for a pod.
-type PodAuthCache struct {
-	cacheGroup *groupcache.Group
-	CacheType  string
-}
-
-// NewCache creates a new PodAuthCache
-func NewCache(cacheGroup *groupcache.Group) *PodAuthCache {
-	cache := new(PodAuthCache)
-	cache.cacheGroup = cacheGroup
-	return cache
-}
-
-// GetStats returns the MainCache metrics
-func (pc *PodAuthCache) GetStats() groupcache.CacheStats {
-	return pc.cacheGroup.CacheStats(groupcache.MainCache)
-}
-
-// GetStats returns the HotCache metrics
-func (pc *PodAuthCache) GetHotStats() groupcache.CacheStats {
-	return pc.cacheGroup.CacheStats(groupcache.HotCache)
-}
-
-// Get is used by GroupCache to load a key not found in the cache
-func (pc *PodAuthCache) Get(podname string) string {
-	var auth string
-	pc.cacheGroup.Get(nil, podname, groupcache.StringSink(&auth))
-	return auth
 }
 
 // GetAddressPair is a convenience function for converting an ip and port

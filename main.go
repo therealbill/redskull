@@ -9,9 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/libkv"
+	"github.com/docker/libkv/store"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/therealbill/airbrake-go"
 	"github.com/therealbill/redskull/actions"
+	"github.com/therealbill/redskull/common"
 	"github.com/therealbill/redskull/handlers"
 	"github.com/zenazn/goji"
 )
@@ -49,8 +52,6 @@ func RefreshData() {
 			pod.AuthToken = mc.GetPodAuth(pod.Name)
 		}
 		mc.IsBalanced()
-		log.Printf("Main Cache Stats: %+v", mc.AuthCache.GetStats())
-		log.Printf("Hot Cache Stats: %+v", mc.AuthCache.GetHotStats())
 	}
 }
 
@@ -65,9 +66,14 @@ type LaunchConfig struct {
 	TemplateDirectory   string
 	NodeRefreshInterval float64
 	RPCPort             int
+	StoreType           string
+	StoreURI            string
+	StoreAddresses      []string
 }
 
-var config LaunchConfig
+var (
+	config LaunchConfig
+)
 
 func init() {
 	err := envconfig.Process("redskull", &config)
@@ -78,6 +84,17 @@ func init() {
 		config.NodeRefreshInterval = 60
 	}
 	actions.NodeRefreshInterval = config.NodeRefreshInterval
+	config.StoreAddresses = strings.Split(config.StoreURI, ",")
+	common.Backingstore, err = libkv.NewStore(
+		store.CONSUL, // or "consul"
+		[]string{"localhost:8500"},
+		&store.Config{
+			ConnectionTimeout: 10 * time.Second,
+		},
+	)
+	if err != nil {
+		log.Fatalf("Unable to connect to backing store. Error=%v", err)
+	}
 
 	log.Printf("Launch Config: %+v", config)
 	if config.BindAddress > "" {
@@ -141,14 +158,6 @@ func main() {
 	//go RefreshData()
 	_, _ = mc.GetPodMap()
 	mc.IsBalanced()
-	//mc = mc
-	//_ = handlers.NewPageContext()
-	if mc.AuthCache == nil {
-		log.Print("Uninitialized AuthCache, StartCache not called, calling now")
-		mc.StartCache()
-	}
-	log.Printf("Main Cache Stats: %+v", mc.AuthCache.GetStats())
-	log.Printf("Hot Cache Stats: %+v", mc.AuthCache.GetHotStats())
 	handlers.SetConstellation(mc)
 
 	go ServeRPC()
