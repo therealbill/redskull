@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/therealbill/redskull.png?label=ready&title=Ready)](https://waffle.io/therealbill/redskull)
 # What Is Red Skull?
 
 Red Skull is a Sentinel management system. It is designed to run on each
