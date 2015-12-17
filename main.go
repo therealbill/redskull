@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/consul"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/therealbill/airbrake-go"
 	"github.com/therealbill/redskull/actions"
@@ -85,15 +86,16 @@ func init() {
 	}
 	actions.NodeRefreshInterval = config.NodeRefreshInterval
 	config.StoreAddresses = strings.Split(config.StoreURI, ",")
+	consul.Register()
 	common.Backingstore, err = libkv.NewStore(
-		store.CONSUL, // or "consul"
+		"consul", // or "consul"
 		[]string{"localhost:8500"},
 		&store.Config{
 			ConnectionTimeout: 10 * time.Second,
 		},
 	)
 	if err != nil {
-		log.Fatalf("Unable to connect to backing store. Error=%v", err)
+		log.Fatalf("Unable to connect to backing store. Error='%v'", err)
 	}
 
 	log.Printf("Launch Config: %+v", config)

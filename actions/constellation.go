@@ -194,9 +194,9 @@ func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, er
 
 // GetPodAuth will return an authstring from the store, or local configs if not in store
 func (c *Constellation) GetPodAuth(podname string) string {
-	auth, err := common.Backingstore.Get(fmt.Sprintf("pods/%s/auth", podname))
+	auth, err := common.Backingstore.Get(fmt.Sprintf("%s/%s/auth", common.StoreConfig.Podbase, podname))
 	if err != nil {
-		return c.PodAuthMap[podname]
+		log.Printf("Error on libkv Get call: '%v'", err)
 	}
 	return string(auth.Value)
 }
@@ -258,27 +258,31 @@ func (c *Constellation) LoadLocalPods() error {
 	ctr := 0
 	for pname, pconfig := range c.SentinelConfig.ManagedPodConfigs {
 		log.Printf("pconfig: %+v\n", pconfig)
-		keybase := fmt.Sprintf("pods/%s/", pname)
-		common.Backingstore.Put(keybase+"auth", []byte(pconfig.AuthToken), nil)
-		common.Backingstore.Put(keybase+"master/ip", []byte(pconfig.IP), nil)
-		common.Backingstore.Put(keybase+"master/port", []byte(fmt.Sprintf("%d", pconfig.Port)), nil)
-		common.Backingstore.Put(keybase+"quorum", []byte(fmt.Sprintf("%d", pconfig.Quorum)), nil)
+		keybase := fmt.Sprintf("%s/pods/%s", common.StoreConfig.SentinelBase, pname)
+		log.Printf("MPCRoll keybase: %s", keybase)
+		common.Backingstore.Put(keybase+"/auth", []byte(pconfig.AuthToken), nil)
+		common.Backingstore.Put(keybase+"/master/ip", []byte(pconfig.IP), nil)
+		common.Backingstore.Put(keybase+"/master/port", []byte(fmt.Sprintf("%d", pconfig.Port)), nil)
+		common.Backingstore.Put(keybase+"/quorum", []byte(fmt.Sprintf("%d", pconfig.Quorum)), nil)
+		common.Backingstore.Put(fmt.Sprintf("%s/nodes/%s:%d/auth", keybase, pconfig.IP, pconfig.Port), []byte(pconfig.AuthToken), nil)
+		common.Backingstore.Put(fmt.Sprintf("%s/nodes/%s:%d/role", keybase, pconfig.IP, pconfig.Port), []byte("master"), nil)
 		var sentinels_string string
+		common.Backingstore.Put(keybase+"/sentinels/"+c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port), []byte(sentinels_string), nil)
 		for k, _ := range pconfig.Sentinels {
+			common.Backingstore.Put(keybase+"/sentinels/"+k, []byte(""), nil)
 			if sentinels_string != "" {
 				sentinels_string += ","
 			}
 			sentinels_string += k
 		}
 		log.Printf("SentinelConfig: %+v\n", c.SentinelConfig)
-		common.Backingstore.Put(keybase+"sentinels/"+c.SentinelConfig.Host+fmt.Sprintf(":%d", c.SentinelConfig.Port), []byte(sentinels_string), nil)
 		mi, err := c.LocalSentinel.GetMaster(pname)
 		if err != nil {
 			log.Printf("WARNING: Pod '%s' in config but not found when talking to the sentinel controller. Err: '%s'", pname, err)
 			continue
 		}
 		address := fmt.Sprintf("%s:%d", mi.Host, mi.Port)
-		common.Backingstore.Put(keybase+"master/address", []byte(address), nil)
+		common.Backingstore.Put(keybase+"/master/address", []byte(address), nil)
 		pod, err := c.LocalSentinel.GetPod(pname)
 		master, err := c.GetNode(address, pname, pconfig.AuthToken)
 		//c.GetNode(address, pname, pconfig.AuthToken)
@@ -395,7 +399,8 @@ func (c *Constellation) MonitorPod(podname, address string, port, quorum int, au
 		log.Print("NO sentinels available! Error:", err)
 		return false, err
 	}
-	c.PodAuthMap[podname] = auth
+	//c.PodAuthMap[podname] = auth
+	common.Backingstore.Put(fmt.Sprintf("%s/%s/auth", common.StoreConfig.Podbase, podname), []byte(auth), nil)
 	cfg := SentinelPodConfig{Name: podname, AuthToken: auth, IP: address, Port: port, Quorum: quorum}
 	c.SentinelConfig.ManagedPodConfigs[podname] = cfg
 	isLocal := false
@@ -757,6 +762,9 @@ func (c *Constellation) LoadNodesForPod(pod *RedisPod, sentinel *Sentinel) {
 	slaves := node.Slaves
 	for _, si := range slaves {
 		c.GetNode(si.Name, pod.Name, pod.AuthToken)
+		keybase := fmt.Sprintf("%s/pods/%s", common.StoreConfig.SentinelBase, pod.Name)
+		common.Backingstore.Put(fmt.Sprintf("%s/nodes/%s/auth", keybase, si.Name), []byte(pod.AuthToken), nil)
+		common.Backingstore.Put(fmt.Sprintf("%s/nodes/%s/role", keybase, si.Name), []byte("slave"), nil)
 	}
 
 }
@@ -770,7 +778,19 @@ func (c *Constellation) GetAllSentinelsQuietly() (sentinels []*Sentinel) {
 
 // SentinelCount returns the number of known sentinels, including this one
 func (c *Constellation) SentinelCount() int {
-	return len(c.RemoteSentinels) + 1
+	sentinels, err := common.Backingstore.List(common.StoreConfig.ConstellationBase)
+	log.Printf("Listing for '%s':", common.StoreConfig.ConstellationBase)
+	if err != nil {
+		log.Printf("Error on store List call: '%v'", err)
+	}
+	log.Printf("Sentinels from store: %+v", sentinels)
+	for _, x := range sentinels {
+		log.Printf("Sentinel value: %s=%+v", string(x.Key), string(x.Value))
+		log.Print("--")
+	}
+	log.Printf("SentinelCount: %d", len(sentinels))
+	return len(sentinels)
+	//return len(c.RemoteSentinels) + 1
 }
 
 // LoadRemotePods loads pods discovered through remote sentinel
@@ -977,6 +997,8 @@ func (c *Constellation) GetMaster(podname string) (master structures.MasterAddre
 // GetPod returns a *RedisPod instance for the given podname
 func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
 	pod, islocal := c.LocalPodMap[podname]
+	authtest := c.GetPodAuth(podname)
+	log.Printf("got authtest: %s", authtest)
 
 	if islocal {
 		spod, err := c.LocalSentinel.GetPod(podname)
@@ -1078,12 +1100,16 @@ func (c *Constellation) GetPodMap() (pods map[string]*RedisPod, err error) {
 // extractSentinelDirective parses the sentinel directives from the
 // sentinel config file
 func (c *Constellation) extractSentinelDirective(entries []string) error {
+	kvroot := fmt.Sprintf("redskull/constellations/primary/sentinels/%s:%d", c.SentinelConfig.Host, c.SentinelConfig.Port)
+	podroot := kvroot + "/pods"
 	switch entries[0] {
 	case "monitor":
 		pname := entries[1]
 		port, _ := strconv.Atoi(entries[3])
 		quorum, _ := strconv.Atoi(entries[4])
 		spc := SentinelPodConfig{Name: pname, IP: entries[2], Port: port, Quorum: quorum}
+		common.Backingstore.Put(fmt.Sprintf("%s/%s/master/port", podroot, pname), []byte(entries[3]), nil)
+		common.Backingstore.Put(fmt.Sprintf("%s/%s/master/ip", podroot, pname), []byte(entries[2]), nil)
 		spc.Sentinels = make(map[string]string)
 		// normally we should not see duplicate IP:PORT combos, however it
 		// can happen when people do things manually and dont' clean up.
@@ -1101,7 +1127,8 @@ func (c *Constellation) extractSentinelDirective(entries []string) error {
 		pname := entries[1]
 		pc := c.SentinelConfig.ManagedPodConfigs[pname]
 		pc.AuthToken = entries[2]
-		c.PodAuthMap[pname] = pc.AuthToken
+		common.Backingstore.Put(fmt.Sprintf("%s/%s/master/auth", podroot, pname), []byte([]byte(pc.AuthToken)), nil)
+		common.Backingstore.Put(fmt.Sprintf("%s/%s/port", podroot, pname), []byte([]byte(pc.AuthToken)), nil)
 		c.SentinelConfig.ManagedPodConfigs[pname] = pc
 		return nil
 
@@ -1111,10 +1138,14 @@ func (c *Constellation) extractSentinelDirective(entries []string) error {
 		pc := c.SentinelConfig.ManagedPodConfigs[podname]
 		pc.Sentinels[sentinel_address] = ""
 		c.ConfiguredSentinels[sentinel_address] = sentinel_address
+		common.Backingstore.Put(fmt.Sprintf("%s/%s/sentinels/%s/%s", podroot, podname, sentinel_address), []byte([]byte(sentinel_address)), nil)
 		return nil
 
 	case "known-slave":
 		// Currently ignoring this, but may add call to a node manager.
+		podname := entries[1]
+		slave_address := entries[2] + ":" + entries[3]
+		common.Backingstore.Put(fmt.Sprintf("%s/%s/nodes/%s/%s/role", podroot, podname, slave_address), []byte([]byte("slave")), nil)
 		return nil
 
 	case "config-epoch", "leader-epoch", "current-epoch", "down-after-milliseconds":
@@ -1138,6 +1169,8 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 	}
 	defer file.Close()
 	bf := bufio.NewReader(file)
+	kvroot := fmt.Sprintf("redskull/constellations/primary") // this needs to be dynamic ones we've got a way to name sentinels
+	common.StoreConfig.ConstellationBase = kvroot
 	for {
 		rawline, err := bf.ReadString('\n')
 		if err == nil || err == io.EOF {
@@ -1159,7 +1192,6 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 			case "port":
 				iport, _ := strconv.Atoi(entries[1])
 				c.SentinelConfig.Port = iport
-				//log.Printf("Local sentinel is bound to port %d", c.SentinelConfig.Port)
 			case "dir":
 				c.SentinelConfig.Dir = entries[1]
 			case "bind":
@@ -1172,18 +1204,21 @@ func (c *Constellation) LoadSentinelConfigFile() error {
 			case "":
 				if err == io.EOF {
 					log.Print("File load complete?")
+					if c.Name == "" {
+						c.Name = fmt.Sprintf("%s:%d", c.SentinelConfig.Host, c.SentinelConfig.Port)
+					}
 					if c.LocalOverrides.BindAddress > "" {
 						c.SentinelConfig.Host = c.LocalOverrides.BindAddress
 						log.Printf("Local sentinel is listening on IP %s", c.SentinelConfig.Host)
 					}
-					if c.Name == "" {
-						c.Name = fmt.Sprintf("%s:%d", c.SentinelConfig.Host, c.SentinelConfig.Port)
-					}
+					keybase := fmt.Sprintf("%s/sentinels/%s", common.StoreConfig.ConstellationBase, c.Name)
+					common.StoreConfig.SentinelBase = keybase
+					podbase := fmt.Sprintf("%s/sentinels/%s/pods", common.StoreConfig.ConstellationBase, c.Name)
+					common.StoreConfig.Podbase = podbase
+					common.Backingstore.Put(keybase+"/ip", []byte(c.SentinelConfig.Host), nil)
+					common.Backingstore.Put(keybase+"/port", []byte(fmt.Sprintf("%d", c.SentinelConfig.Port)), nil)
 					return nil
 				}
-				//log.Printf("Local:config -> %+v", c.SentinelConfig)
-				//log.Printf("Found %d REMOTE sentinels", len(c.RemoteSentinels))
-				//return nil
 			default:
 				log.Printf("UNhandled Sentinel Directive: %s", line)
 			}

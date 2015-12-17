@@ -29,7 +29,7 @@
 		},
 		{
 			"ImportPath": "github.com/docker/libkv",
-			"Rev": "34e5abb23ff240967472c07ca1dfd1080fdc7d81"
+			"Rev": "975dbc9a3dc76a4b3ed1f60f73b9c0323b40336c"
 		},
 		{
 			"ImportPath": "github.com/dustin/go-humanize",
