@@ -782,7 +782,6 @@ func (c *Constellation) GetAllSentinelsQuietly() (sentinels []*Sentinel) {
 
 // SentinelCount returns the number of known sentinels, including this one
 func (c *Constellation) SentinelCount() int {
-	//scount := 0
 	// I don't like this, but libkv doesn't (yet?) have a way to only give me
 	// one level rather than everything under a given node
 	skey := fmt.Sprintf("%s/sentinels/", common.StoreConfig.ConstellationBase)
@@ -792,22 +791,17 @@ func (c *Constellation) SentinelCount() int {
 		log.Printf("Error on store List call: '%v'", err)
 		return 0
 	}
-	log.Printf("Sentinels from store: %+v", keys)
 	sentinels := make(map[string]interface{})
 	for _, x := range keys {
 		levels := strings.Split(string(x.Key), "/")
 		s := levels[depth]
 		sentinels[s] = nil
-		//if strings.Count(string(x.Key), "/")-depth == 1 {
-		//log.Printf("key: '%s'", string(x.Key))
-		//scount++
-		//}
 	}
 	return len(sentinels)
 }
 
 // LoadRemotePods loads pods discovered through remote sentinel
-// interrogation or througg known-sentinel directives
+// interrogation or through known-sentinel directives
 func (c *Constellation) LoadRemotePods() error {
 	if c.RemotePodMap == nil {
 		c.RemotePodMap = make(map[string]*RedisPod)
@@ -1074,10 +1068,58 @@ func (c *Constellation) GetSlaves(podname string) (slaves []structures.SlaveInfo
 	return
 }
 
+// GetPodNamesFromStore
+func (c *Constellation) GetPodNamesFromStore() (names []string, err error) {
+
+	keys, err := common.Backingstore.List(common.StoreConfig.Podbase)
+	depth := strings.Count(common.StoreConfig.Podbase, "/") + 1
+	if err != nil {
+		log.Printf("Error on store pod List call: '%v'", err)
+		return
+	}
+	pods := make(map[string]interface{})
+	for _, x := range keys {
+		levels := strings.Split(string(x.Key), "/")
+		s := levels[depth]
+		pods[s] = nil
+	}
+	for k, _ := range pods {
+		names = append(names, k)
+	}
+	return names, nil
+}
+
 // GetPods returns the list of known pods
 func (c *Constellation) GetPods() (pods []*RedisPod) {
 	podmap, _ := c.GetPodMap()
 	havepods := make(map[string]interface{})
+	// yeah I am not a fan of this either will need soem serious refactoring
+	// after this refactoring
+	// this needs ot change to loading the pod directly here
+	log.Print("First load from backing store")
+	pnames, err := c.GetPodNamesFromStore()
+	if err != nil {
+		log.Printf("error: '%v'", err)
+	} else {
+		for _, pn := range pnames {
+			log.Printf("loading pod '%s'", pn)
+			pod, exists := podmap[pn]
+			if !exists {
+				log.Printf("Pod '%s' not in podmap", pn)
+			}
+			_, have := havepods[pn]
+			if !have {
+				if pod.HasErrors() {
+					c.PodsInError = append(c.PodsInError, pod)
+				}
+				pods = append(pods, pod)
+				havepods[pn] = nil
+			}
+		}
+	}
+	// this should hopefully go away once the podmap is built from
+	// Backingstore
+	log.Print("Then load from backing config parse")
 	for _, pod := range podmap {
 		if pod.Name == "" {
 			log.Print("WUT: Have a nameless pod. Probably a bug")
@@ -1085,7 +1127,11 @@ func (c *Constellation) GetPods() (pods []*RedisPod) {
 		}
 		_, have := havepods[pod.Name]
 		if !have {
+			log.Printf("Loading pod '%s'", pod.Name)
 			pods = append(pods, pod)
+			havepods[pod.Name] = nil
+		} else {
+			log.Printf("already loaded pod '%s'", pod.Name)
 		}
 	}
 	return pods
