@@ -1,0 +1,14 @@
+[Unit]
+Description=Redskull Sentinel/Redis Manager
+Requires=redis-sentinel.service
+After=redis-sentinel.service
+
+
+
+[Service]
+ExecStart=/usr/redskull/redskull
+WorkingDirectory=/usr/redskull
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,31 +1,11 @@
 {
 	"ImportPath": "github.com/therealbill/redskull",
-	"GoVersion": "go1.4.1",
+	"GoVersion": "go1.5.1",
 	"Deps": [
 		{
 			"ImportPath": "code.google.com/p/go-uuid/uuid",
 			"Comment": "null-15",
 			"Rev": "35bc42037350f0078e3c974c6ea690f1926603ab"
-		},
-		{
-			"ImportPath": "github.com/boltdb/bolt",
-			"Comment": "v1.0-28-gb8dbe11",
-			"Rev": "b8dbe1101d74c30e817227a99716591e3e6e6bc4"
-		},
-		{
-			"ImportPath": "github.com/coreos/etcd/etcdserver/etcdhttp/httptypes",
-			"Comment": "v2.0.4-302-g635e4db",
-			"Rev": "635e4db6d942cd84e8b613c37c6b47f8c06b94dd"
-		},
-		{
-			"ImportPath": "github.com/coreos/etcd/pkg/types",
-			"Comment": "v2.0.4-302-g635e4db",
-			"Rev": "635e4db6d942cd84e8b613c37c6b47f8c06b94dd"
-		},
-		{
-			"ImportPath": "github.com/coreos/go-etcd/etcd",
-			"Comment": "v0.4.6-8-g60e12ca",
-			"Rev": "60e12cac3db8ffce00b576b4af0e7b0a968f1003"
 		},
 		{
 			"ImportPath": "github.com/docker/libkv",
@@ -41,13 +21,18 @@
 			"Rev": "205af6ba750b88863e6ee50c7c3d19edc180a6f6"
 		},
 		{
+			"ImportPath": "github.com/hashicorp/go-cleanhttp",
+			"Rev": "ce617e79981a8fff618bb643d155133a8f38db96"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/serf/coordinate",
+			"Comment": "v0.7.0-8-gb60fe33",
+			"Rev": "b60fe33be5c14bcfb4b23969bf2776cf26ca9d86"
+		},
+		{
 			"ImportPath": "github.com/kelseyhightower/envconfig",
 			"Comment": "v1.0.0-6-ge904934",
 			"Rev": "e9049346b6aae8e6ad500c5a4519ad029439d660"
-		},
-		{
-			"ImportPath": "github.com/samuel/go-zookeeper/zk",
-			"Rev": "177002e16a0061912f02377e2dd8951a8b3551bc"
 		},
 		{
 			"ImportPath": "github.com/therealbill/airbrake-go",

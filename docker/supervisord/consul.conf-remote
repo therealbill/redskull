@@ -1,0 +1,2 @@
+[program:consul]
+command=/usr/bin/consul agent -join %(ENV_CONSUL_ADDRESS) -data-dir=/tmp/consul -config-dir=/etc/consul.d
