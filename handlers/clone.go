@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/pborman/uuid"
 	"github.com/therealbill/libredis/client"
 	"github.com/therealbill/redskull/common"
 	"github.com/zenazn/goji/web"
