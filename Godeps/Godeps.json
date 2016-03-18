@@ -1,12 +1,7 @@
 {
 	"ImportPath": "github.com/therealbill/redskull",
-	"GoVersion": "go1.4.1",
+	"GoVersion": "go1.5.1",
 	"Deps": [
-		{
-			"ImportPath": "code.google.com/p/go-uuid/uuid",
-			"Comment": "null-15",
-			"Rev": "35bc42037350f0078e3c974c6ea690f1926603ab"
-		},
 		{
 			"ImportPath": "github.com/dustin/go-humanize",
 			"Rev": "145fabdb1ab757076a70a886d092a3af27f66f4c"
@@ -23,6 +18,10 @@
 			"ImportPath": "github.com/kelseyhightower/envconfig",
 			"Comment": "v1.0.0-6-ge904934",
 			"Rev": "e9049346b6aae8e6ad500c5a4519ad029439d660"
+		},
+		{
+			"ImportPath": "github.com/pborman/uuid",
+			"Rev": "cccd189d45f7ac3368a0d127efb7f4d08ae0b655"
 		},
 		{
 			"ImportPath": "github.com/therealbill/airbrake-go",
