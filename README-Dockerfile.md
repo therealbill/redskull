@@ -1,9 +1,13 @@
-# Using the Dockerfile
+# Using the Dockerfiles
 
-This Dockerfile will build an image running Sentinel, RedSkull, and
-Consul. Once you've run `go build` you can then run `docker build -t
-redskull .` to get a Docker image built. 
 
+The "standard" Dockerfile builds an image running Sentinel and Redskull under
+Supervisord. If your Docker *host* already has Consul running, use this one. If
+you need Consul to run in the Redskull container use `Dockerfile-consul`.
+
+## Makefile for Ease of Use
+
+The makefile has targets set up for with or without Consul.
 
 # Assumptions
 
@@ -17,5 +21,5 @@ port of 26379.
 
 As RedSkull uses environment variables for config you can pass them in
 the `docker run` command to change them if needed. Normally you won't
-need to.
+need to outside of the Consul Address.
 

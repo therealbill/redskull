@@ -3,11 +3,20 @@
 # #   make doesn't like spaces and ':' in filenames.
 #NOW := $(shell date +"%c" | tr ' :' '__')
 NOW := $(shell date +"%s" )
+UNAME := $(shell uname -s)
+BUILD_DATE := `date +%Y-%m-%d\ %H:%M`
+VERSIONFILE := version.go
+BUILD_NUMBER_FILE := .buildno
+BUILD_NUMBER := $(shell cat $(BUILD_NUMBER_FILE))
 
 redskull:
-	@echo building redskull binary
+	@echo Building native redskull binary
 	@go vet
-	@go build
+	@go build -ldflags "-X=main.BUILD $(NOW)"
+ifeq ($(UNAME), Darwin)
+	@echo Building Linux redskull binary
+	@GOOS="linux" GOARCH="amd64" go build -o redskull-linux -ldflags "-X=main.BUILD $(NOW)"
+endif
 
 dist-tar:  redskull
 	@echo building distribution tarball
@@ -19,14 +28,21 @@ dist-tar:  redskull
 
 docker-image: redskull
 	@echo "Hope you have docker setup and have access ;)"
-	docker build -t redskull .
+	@GOOS="linux" GOARCH="amd64" go build -o redskull -ldflags "-X=main.BUILD $(NOW)"
+	docker build -t redskull:$(NOW) .
 
+docker-image-with-local-consul: redskull
+	@echo "Hope you have docker setup and have access ;)"
+	docker build -t redskull:consul:$(NOW) -f Dockerfile-consul .
+
+docker-image-with-remote-consul: redskull
+	@echo "Hope you have docker setup and have access ;)"
+	docker build -t redskull:consul:$(NOW) -f Dockerfile-consul-remote .
+
+# This is useful for when you have a local docker 
+# # but no local Go installation
 docker-nolocalgo:
 	@echo using centurylink/golang-builder to build docker container
 	docker pull centurylink/golang-builder 
 	docker run --rm -v ${PWD}:/src -v /var/run/docker.sock:/var/run/docker.sock  centurylink/golang-builder
 
-
-.PHONY: clean
-clean:
-	@rm -f redskull

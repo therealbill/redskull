@@ -13,6 +13,7 @@ import (
 
 	"github.com/therealbill/libredis/client"
 	"github.com/therealbill/redskull/actions"
+	"github.com/therealbill/redskull/common"
 	"github.com/therealbill/redskull/handlers"
 	"github.com/therealbill/redskull/rpcclient"
 )
@@ -101,8 +102,8 @@ func (r *RPC) GetSentinelsForPod(podname string, resp *[]string) error {
 	return nil
 }
 
-func (r *RPC) AddPod(pr rsclient.NewPodRequest, resp *actions.RedisPod) (err error) {
-	gob.Register(actions.RedisPod{})
+func (r *RPC) AddPod(pr rsclient.NewPodRequest, resp *common.RedisPod) (err error) {
+	gob.Register(common.RedisPod{})
 	ok, err := r.constellation.MonitorPod(pr.Name, pr.IP, pr.Port, pr.Quorum, pr.Auth)
 	if err != nil {
 		log.Printf("MonitorPod call ('%+v') Failed. Error: %s", pr, err.Error())
@@ -122,8 +123,8 @@ func (r *RPC) AddPod(pr rsclient.NewPodRequest, resp *actions.RedisPod) (err err
 	return err
 }
 
-func (r *RPC) GetPod(podname string, resp *actions.RedisPod) (err error) {
-	gob.Register(actions.RedisPod{})
+func (r *RPC) GetPod(podname string, resp *common.RedisPod) (err error) {
+	gob.Register(common.RedisPod{})
 	pod, err := r.constellation.GetPod(podname)
 	if pod == nil || pod.Name == "" {
 		err = errors.New("Pod Not found")

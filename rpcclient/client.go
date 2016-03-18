@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/therealbill/redskull/actions"
+	"github.com/therealbill/redskull/common"
 )
 
 type Client struct {
@@ -100,8 +101,8 @@ func (c *Client) AddSentinel(address string) (bool, error) {
 
 // AddPod(NewPodRequest) will take the information in the PodRequest and
 // instruct Redskull to add it to it's monitor list.
-func (c *Client) AddPod(name, ip string, port, quorum int, auth string) (actions.RedisPod, error) {
-	var pod actions.RedisPod
+func (c *Client) AddPod(name, ip string, port, quorum int, auth string) (common.RedisPod, error) {
+	var pod common.RedisPod
 	pr := NewPodRequest{Name: name, IP: ip, Port: port, Quorum: quorum, Auth: auth}
 	err := c.connection.Call("RPC.AddPod", pr, &pod)
 	if err != nil {
@@ -111,10 +112,10 @@ func (c *Client) AddPod(name, ip string, port, quorum int, auth string) (actions
 
 }
 
-// GetPod(podname) will return the actions.RedisPod type for the given pod, if
+// GetPod(podname) will return the common.RedisPod type for the given pod, if
 // found.
-func (c *Client) GetPod(podname string) (actions.RedisPod, error) {
-	var pod actions.RedisPod
+func (c *Client) GetPod(podname string) (common.RedisPod, error) {
+	var pod common.RedisPod
 	err := c.connection.Call("RPC.GetPod", podname, &pod)
 	if err != nil {
 		log.Print(err)
@@ -149,15 +150,10 @@ func (c *Client) BalancePod(podname string) error {
 	return nil
 }
 
-//GetPodList returns a list of known pods
-func (c *Client) GetPodList() ([]string, error) {
-	var pods []string
-	err := c.connection.Call("RPC.GetPodList", true, &pods)
-	if err != nil {
-		if err != nil {
-			log.Printf("Error: %s", err.Error())
-		}
-		return pods, errors.New("Was unable to get list of pods")
-	}
-	return pods, err
+
+//ValidatePodSentinels validates the sentinels listed for the given pod.
+func (c* Client) ValidatePodSentinels(podname string) (map[string]bool,error) {
+	checks := make(make[string]bool)
+
 }
+

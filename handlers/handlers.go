@@ -46,8 +46,8 @@ type PageContext struct {
 	CurrentURL    string
 	Constellation *actions.Constellation
 	NodeMaster    actions.NodeManager
-	Pod           *actions.RedisPod
-	Node          *actions.RedisNode
+	Pod           *common.RedisPod
+	Node          *common.RedisNode
 	Refresh       bool
 	RefreshTime   int
 	RefreshURL    string

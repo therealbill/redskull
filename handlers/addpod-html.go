@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/therealbill/redskull/actions"
 	"github.com/therealbill/redskull/common"
 	"github.com/zenazn/goji/web"
 )
@@ -41,7 +40,7 @@ func AddPodHTML(c web.C, w http.ResponseWriter, r *http.Request) {
 		Error    string
 		HasError bool
 		PodURL   string
-		Pod      actions.RedisPod
+		Pod      common.RedisPod
 	}
 	res := results{Name: podname, Address: address, Quorum: quorum}
 	_, err = context.Constellation.MonitorPod(podname, host, port, quorum, auth)

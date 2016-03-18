@@ -53,7 +53,7 @@ func ShowPods(c web.C, w http.ResponseWriter, r *http.Request) {
 func ShowPod(c web.C, w http.ResponseWriter, r *http.Request) {
 	log.Print("ShowPod called")
 	type PodData struct {
-		Slaves     []*actions.RedisNode
+		Slaves     []*common.RedisNode
 		Conditions map[string]bool
 		Metrics    map[string]int
 	}
@@ -70,7 +70,7 @@ func ShowPod(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sentinels := context.Constellation.GetSentinelsForPod(target)
-	var updated_slaves []*actions.RedisNode
+	var updated_slaves []*common.RedisNode
 	if pod == nil {
 		// Need to load master here ...
 		context.Error = fmt.Errorf("Unable to load master for pod %s FIXME", target)
