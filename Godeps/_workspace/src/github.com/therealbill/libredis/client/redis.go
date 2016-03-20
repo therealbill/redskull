@@ -83,6 +83,7 @@ package client
 import (
 	"bufio"
 	"container/list"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -333,15 +334,21 @@ func (p *connPool) Put(c *connection) {
 // Redis client struct
 // Containers connection parameters and connection pool
 type Redis struct {
-	network   string
-	address   string
-	db        int
-	password  string
-	timeout   time.Duration
-	pool      *connPool
-	keymap    map[string]string
-	Slots     []structures.ClusterSlot
-	Sentinels structures.SentinelList
+	network    string
+	address    string
+	db         int
+	password   string
+	timeout    time.Duration
+	pool       *connPool
+	keymap     map[string]string
+	SSL        bool
+	Slots      []structures.ClusterSlot
+	Sentinels  structures.SentinelList
+	certFile   string
+	keyFile    string
+	caFile     string
+	SkipVerify bool
+	serverName string
 }
 
 // GetName returns the name/address of the connected Redis instance
@@ -380,6 +387,9 @@ func (r *Redis) ExecuteCommand(args ...interface{}) (*Reply, error) {
 		}
 	}
 	rp, err := c.RecvReply()
+	if rp.Error > "" {
+		return rp, errors.New(rp.Error)
+	}
 	if err != nil {
 		if err != io.EOF {
 			return nil, err
@@ -397,9 +407,30 @@ func (r *Redis) ExecuteCommand(args ...interface{}) (*Reply, error) {
 }
 
 func (r *Redis) dialConnection() (*connection, error) {
-	conn, err := net.DialTimeout(r.network, r.address, r.timeout)
+	var conn net.Conn
+	ipconn, err := net.DialTimeout(r.network, r.address, r.timeout)
 	if err != nil {
 		return nil, err
+	}
+	if r.SSL {
+		var config tls.Config
+		if (r.certFile > "") || (r.serverName > "") {
+			if r.certFile > "" {
+				cert, err := tls.LoadX509KeyPair(r.certFile, r.keyFile)
+				if err != nil {
+					return nil, err
+				}
+				config = tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: r.SkipVerify, ServerName: r.serverName}
+			} else {
+				config = tls.Config{InsecureSkipVerify: r.SkipVerify, ServerName: r.serverName}
+			}
+			conn = tls.Client(ipconn, &config)
+		} else {
+			config = tls.Config{InsecureSkipVerify: r.SkipVerify}
+			conn = tls.Client(ipconn, &config)
+		}
+	} else {
+		conn = ipconn
 	}
 	//conn.SetWriteDeadline(r.timeout) // needs to be time.Time?
 	c := &connection{conn, bufio.NewReader(conn)}
@@ -454,12 +485,18 @@ const (
 
 // DialConfig is redis client connect to server parameters
 type DialConfig struct {
-	Network  string
-	Address  string
-	Database int
-	Password string
-	Timeout  time.Duration
-	MaxIdle  int
+	Network    string
+	Address    string
+	Database   int
+	Password   string
+	Timeout    time.Duration
+	MaxIdle    int
+	SkipVerify bool
+	UseSSL     bool
+	CAFile     string
+	KeyFile    string
+	CertFile   string
+	ServerName string
 }
 
 // Dial up a redis client with just a Host:port string
@@ -528,11 +565,17 @@ func DialWithConfig(cfg *DialConfig) (*Redis, error) {
 		cfg.MaxIdle = DefaultMaxIdle
 	}
 	r := &Redis{
-		network:  cfg.Network,
-		address:  cfg.Address,
-		db:       cfg.Database,
-		password: cfg.Password,
-		timeout:  cfg.Timeout,
+		network:    cfg.Network,
+		address:    cfg.Address,
+		db:         cfg.Database,
+		password:   cfg.Password,
+		timeout:    cfg.Timeout,
+		SSL:        cfg.UseSSL,
+		SkipVerify: cfg.SkipVerify,
+		keyFile:    cfg.KeyFile,
+		certFile:   cfg.CertFile,
+		caFile:     cfg.CAFile,
+		serverName: cfg.ServerName,
 	}
 	r.pool = &connPool{
 		MaxIdle: cfg.MaxIdle,
@@ -571,7 +614,7 @@ func DialURL(rawurl string) (*Redis, error) {
 	if err != nil {
 		return nil, err
 	}
-	return DialWithConfig(&DialConfig{ul.Scheme, ul.Host, db, password, timeout, maxidle})
+	return DialWithConfig(&DialConfig{ul.Scheme, ul.Host, db, password, timeout, maxidle, false, false, "", "", "", ""})
 }
 
 // Reply Type: Status, Integer, Bulk, Multi Bulk
@@ -609,13 +652,17 @@ func (rp *Reply) IntegerValue() (int64, error) {
 // which are also extensively used in order to return true or false.
 // For instance commands like EXISTS or SISMEMBER will return 1 for true and 0 for false.
 func (rp *Reply) BoolValue() (bool, error) {
-	if rp.Type == ErrorReply {
+	switch rp.Type {
+	case ErrorReply:
 		return false, errors.New(rp.Error)
+	case IntegerReply:
+		return rp.Integer != 0, nil
+	case StatusReply:
+		rsp, _ := rp.StatusValue()
+		return rsp == "OK", nil
+	default:
+		return false, errors.New("invalid reply type, not Bool-able")
 	}
-	if rp.Type != IntegerReply {
-		return false, errors.New("invalid reply type, not integer")
-	}
-	return rp.Integer != 0, nil
 }
 
 // StatusValue indicates redis reply a status string

@@ -1,10 +1,12 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/therealbill/libredis/structures"
 )
@@ -73,8 +75,10 @@ func (r *Redis) SentinelSlaves(podname string) (slaves []structures.SlaveInfo, e
 // This is used to add pods to the sentinel configuration
 func (r *Redis) SentinelMonitor(podname string, ip string, port int, quorum int) (bool, error) {
 	res, err := r.ExecuteCommand("SENTINEL", "MONITOR", podname, ip, port, quorum)
-	ok, _ := res.BoolValue()
-	return ok, err
+	if err != nil {
+		return false, err
+	}
+	return res.BoolValue()
 }
 
 // SentinelRemove executes the SENTINEL REMOVE command on the server
@@ -284,4 +288,54 @@ func (r *Redis) SentinelFailover(podname string) (bool, error) {
 		return false, fmt.Errorf(rp.Error)
 	}
 	return true, nil
+}
+
+func (r *Redis) GetPodName() (name string, err error) {
+	// we can get this by subscribing to the sentinel channel and getting a hello message
+	// TODO: Will need to update this when I make PubSub message structs
+	maxmsgcnt := 10
+	p, _ := r.PubSub()
+	p.Subscribe("__sentinel__:hello")
+	var msg []string
+	for x := 0; x < maxmsgcnt; x++ {
+		msg, err = p.Receive()
+		if err != nil {
+			return name, err
+		}
+		switch msg[0] {
+		case "message":
+			fields := strings.Split(msg[2], ",")
+			name = fields[4]
+			return name, nil
+		}
+	}
+	return name, errors.New("No messages contained the needed hello")
+}
+
+func (r *Redis) GetKnownSentinels() (sentinels map[string]string, err error) {
+	maxmsgcnt := 10
+	p, _ := r.PubSub()
+	p.Subscribe("__sentinel__:hello")
+	sentinels = make(map[string]string)
+	var msg []string
+	for x := 0; x < maxmsgcnt; x++ {
+		msg, err = p.Receive()
+		if err != nil {
+			return
+		}
+		switch msg[0] {
+		case "message":
+			fields := strings.Split(msg[2], ",")
+			//name = fields[4]
+			ip := fields[0]
+			port := fields[1]
+			//sentinelid := fields[2]
+			sentinels[ip] = port
+		}
+	}
+	if len(sentinels) == 0 {
+		return sentinels, errors.New("No messages contained the needed hello")
+	} else {
+		return sentinels, nil
+	}
 }

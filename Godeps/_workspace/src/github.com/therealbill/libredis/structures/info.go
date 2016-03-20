@@ -84,24 +84,24 @@ type InfoPersistence struct {
 
 // InfoStats represents the Stats section of Redis INFO
 type InfoStats struct {
-	TotalConnectionsRecevied int `redis:"total_connections_received"`
-	TotalCommandsProcessed   int `redis:"total_commands_processed"`
-	InstanteousOpsPerSecond  int `redis:"instantaneous_ops_per_sec"`
-	TotalNetInputBytes       int `redis:"total_net_input_bytes"`
-	TotalNetOutputBytes      int `redis:"total_net_output_bytes"`
-	InstanteousInputKbps     int `redis:"instantaneous_input_kbps"`
-	InstanteousOutputKbps    int `redis:"instantaneous_output_kbps"`
-	RejectedConnections      int `redis:"rejected_connections"`
-	SyncFill                 int `redis:"sync_full"`
-	SyncPartialOk            int `redis:"sync_partial_ok"`
-	SyncPartialErr           int `redis:"sync_partial_err"`
-	ExpiredKeys              int `redis:"expired_keys"`
-	EvictedKeys              int `redis:"evicted_keys"`
-	KeyspaceHits             int `redis:"keyspace_hits"`
-	KeyspaceMisses           int `redis:"keyspace_misses"`
-	PubSubChannels           int `redis:"pubsub_channels"`
-	PubSubPatterns           int `redis:"pubsub_patterns"`
-	LatestForkUsec           int `redis:"latest_fork_usec"`
+	TotalConnectionsRecevied int     `redis:"total_connections_received"`
+	TotalCommandsProcessed   int     `redis:"total_commands_processed"`
+	InstanteousOpsPerSecond  int     `redis:"instantaneous_ops_per_sec"`
+	TotalNetInputBytes       int     `redis:"total_net_input_bytes"`
+	TotalNetOutputBytes      int     `redis:"total_net_output_bytes"`
+	InstanteousInputKbps     float64 `redis:"instantaneous_input_kbps"`
+	InstanteousOutputKbps    float64 `redis:"instantaneous_output_kbps"`
+	RejectedConnections      int     `redis:"rejected_connections"`
+	SyncFill                 int     `redis:"sync_full"`
+	SyncPartialOk            int     `redis:"sync_partial_ok"`
+	SyncPartialErr           int     `redis:"sync_partial_err"`
+	ExpiredKeys              int     `redis:"expired_keys"`
+	EvictedKeys              int     `redis:"evicted_keys"`
+	KeyspaceHits             int     `redis:"keyspace_hits"`
+	KeyspaceMisses           int     `redis:"keyspace_misses"`
+	PubSubChannels           int     `redis:"pubsub_channels"`
+	PubSubPatterns           int     `redis:"pubsub_patterns"`
+	LatestForkUsec           int     `redis:"latest_fork_usec"`
 }
 
 // InfoReplication represents the Replication section of Redis INFO

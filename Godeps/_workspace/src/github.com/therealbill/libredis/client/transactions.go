@@ -7,8 +7,6 @@ import (
 // Transaction doc: http://redis.io/topics/transactions
 // MULTI, EXEC, DISCARD and WATCH are the foundation of transactions in Redis.
 // A Redis script is transactional by definition,
-// so everything you can do with a Redis transaction, you can also do with a script,
-// and usually the script will be both simpler and faster.
 type Transaction struct {
 	redis *Redis
 	conn  *connection

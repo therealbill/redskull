@@ -12,8 +12,14 @@ func TestBgRewriteAof(t *testing.T) {
 }
 
 func TestBgSave(t *testing.T) {
+	// the testing process can call this while the TestBgRewriteAof is still running
+	// thus we will sleep a couple seconds to let it finish.
+	// Not ideal but it keeps the test simple
+	time.Sleep(2 * time.Second)
 	if err := r.BgSave(); err != nil {
+		//if !strings.Contains(err.Error(), "while AOF log rewriting") {
 		t.Error(err)
+		//}
 	}
 }
 

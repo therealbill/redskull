@@ -42,6 +42,15 @@ func (r *Redis) ClientKill(ip string, port int) error {
 }
 
 // Role() returns the current role name on the server. Requires Redis >= 2.8.12
+func (r *Redis) Role() (sl []string, err error) {
+	rp, err := r.ExecuteCommand("ROLE")
+	if err != nil {
+		return sl, err
+	}
+	return rp.Multi[1].ListValue()
+}
+
+// RoleName() returns the current role name on the server. Requires Redis >= 2.8.12
 // This is a shorthand for those who only want the name of the role rather than
 // all the details.
 func (r *Redis) RoleName() (string, error) {
@@ -299,11 +308,11 @@ func (r *Redis) Save() error {
 // Perform a blocking SAVE if at least one save point is configured.
 // Flush the Append Only File if AOF is enabled.
 // Quit the server.
-func (r *Redis) Shutdown(save, noSave bool) error {
+func (r *Redis) Shutdown(save bool) error {
 	args := packArgs("SHUTDOWN")
 	if save {
 		args = append(args, "SAVE")
-	} else if noSave {
+	} else {
 		args = append(args, "NOSAVE")
 	}
 	rp, err := r.ExecuteCommand(args...)

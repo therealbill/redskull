@@ -4,7 +4,7 @@ import "testing"
 
 func init() {
 	address = "127.0.0.1:6379"
-	client, err := DialWithConfig(&DialConfig{network, address, db, password, timeout, maxidle})
+	client, err := DialWithConfig(&DialConfig{network, address, db, password, timeout, maxidle, false, false, "", "", "", ""})
 	if err != nil {
 		panic(err)
 	}
