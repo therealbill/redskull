@@ -74,7 +74,7 @@ func (r *RPC) CheckPodAuth(podname string, resp *map[string]bool) error {
 	}
 	psresults := make(map[string]bool)
 	if pod.Master == nil {
-		mnode, err := actions.LoadNodeFromHostPort(pod.Master.Address, pod.Master.Port, pod.AuthToken)
+		mnode, err := common.LoadNodeFromHostPort(pod.Master.Address, pod.Master.Port, pod.AuthToken)
 		if err != nil {
 			log.Print("Connection error: ", err)
 			return errors.New("Unable to connect to master nod at all. Check server logs for why")

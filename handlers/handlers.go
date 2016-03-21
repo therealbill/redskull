@@ -15,6 +15,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/therealbill/airbrake-go"
 	"github.com/therealbill/redskull/actions"
+	"github.com/therealbill/redskull/common"
 )
 
 // constellation represents the constellation serveed by this Red Skull
@@ -24,7 +25,7 @@ var constellation actions.Constellation
 
 // NodeMaster is deprecated. Previously/currently used for storing node
 // connections. It needs refactored to use the constellation-wide node routines
-var NodeMaster = new(actions.NodeStore)
+var NodeMaster = new(common.NodeStore)
 
 var TemplateBase string
 
@@ -45,7 +46,7 @@ type PageContext struct {
 	ViewTemplate  string
 	CurrentURL    string
 	Constellation *actions.Constellation
-	NodeMaster    actions.NodeManager
+	NodeMaster    common.NodeManager
 	Pod           *common.RedisPod
 	Node          *common.RedisNode
 	Refresh       bool

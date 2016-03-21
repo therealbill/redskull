@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/therealbill/libredis/client"
-	"github.com/therealbill/redskull/actions"
 	"github.com/therealbill/redskull/common"
 	"github.com/zenazn/goji/web"
 )
@@ -258,7 +257,7 @@ func AddSlaveHTMLProcessor(c web.C, w http.ResponseWriter, r *http.Request) {
 		log.Printf("Slave added success")
 		slave_target.ConfigSet("masterauth", pod.AuthToken)
 		slave_target.ConfigSet("requirepass", pod.AuthToken)
-		slave, err := actions.LoadNodeFromHostPort(address, port, pod.AuthToken)
+		slave, err := common.LoadNodeFromHostPort(address, port, pod.AuthToken)
 		if err != nil {
 			log.Printf("In AddSlaveHTMLProcessor, unable to get new slave node")
 		} else {

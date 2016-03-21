@@ -18,6 +18,7 @@ import (
 	"github.com/golang/groupcache"
 	"github.com/therealbill/libredis/client"
 	"github.com/therealbill/libredis/structures"
+	"github.com/therealbill/redskull/common"
 )
 
 const GCPORT = "8008"
@@ -47,10 +48,10 @@ type LocalSentinelConfig struct {
 // as well providing an interface for taking actions against it.
 type Constellation struct {
 	Name                string
-	PodMap              map[string]*RedisPod
-	LocalPodMap         map[string]*RedisPod
-	RemotePodMap        map[string]*RedisPod
-	PodsInError         []*RedisPod
+	PodMap              map[string]*common.RedisPod
+	LocalPodMap         map[string]*common.RedisPod
+	RemotePodMap        map[string]*common.RedisPod
+	PodsInError         []*common.RedisPod
 	NumErrorPods        int
 	LastErrorCheck      time.Time
 	Connected           bool
@@ -66,7 +67,7 @@ type Constellation struct {
 	Peers               *groupcache.HTTPPool
 	PeerList            map[string]string
 	PodAuthMap          map[string]string
-	NodeMap             map[string]*RedisNode
+	NodeMap             map[string]*common.RedisNode
 	NodeNameToPodMap    map[string]string
 	ConfiguredSentinels map[string]interface{}
 	Metrics             ConstellationStats
@@ -88,10 +89,10 @@ func GetConstellation(name, cfg, group, sentinelAddress string) (Constellation, 
 	con.RemoteSentinels = make(map[string]*Sentinel)
 	con.BadSentinels = make(map[string]*Sentinel)
 	con.PodAuthMap = make(map[string]string)
-	con.PodMap = make(map[string]*RedisPod)
-	con.LocalPodMap = make(map[string]*RedisPod)
-	con.RemotePodMap = make(map[string]*RedisPod)
-	con.NodeMap = make(map[string]*RedisNode)
+	con.PodMap = make(map[string]*common.RedisPod)
+	con.LocalPodMap = make(map[string]*common.RedisPod)
+	con.RemotePodMap = make(map[string]*common.RedisPod)
+	con.NodeMap = make(map[string]*common.RedisNode)
 	con.PeerList = make(map[string]string)
 	con.NodeNameToPodMap = make(map[string]string)
 	con.ConfiguredSentinels = make(map[string]interface{})
@@ -157,10 +158,10 @@ func (c *Constellation) GetStats() ConstellationStats {
 	return metrics
 }
 
-// GetNode will retun an instance of a RedisNode.
+// GetNode will retun an instance of a common.RedisNode.
 // It also attempts to determine dynamic data such as sentinels and booleans
 // like CanFailover
-func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, err error) {
+func (c *Constellation) GetNode(name, podname, auth string) (node *common.RedisNode, err error) {
 	if c.NodeMap == nil {
 		log.Fatal("c.NodeMap is not initialized. wtf?!")
 	}
@@ -173,7 +174,7 @@ func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, er
 			return node, err
 		}
 		if c.NodeMap == nil {
-			c.NodeMap = make(map[string]*RedisNode)
+			c.NodeMap = make(map[string]*common.RedisNode)
 		}
 		if c.NodeNameToPodMap == nil {
 			c.NodeNameToPodMap = make(map[string]string)
@@ -191,7 +192,7 @@ func (c *Constellation) GetNode(name, podname, auth string) (node *RedisNode, er
 		log.Print("Unable to determine connection info. Err:", err)
 		return
 	}
-	node, err = LoadNodeFromHostPort(host, port, auth)
+	node, err = common.LoadNodeFromHostPort(host, port, auth)
 	if err != nil {
 		log.Print("Unable to obtain connection . Err:", err)
 		return
@@ -244,13 +245,13 @@ func (c *Constellation) StartCache() {
 // knows about.
 func (c *Constellation) LoadLocalPods() error {
 	if c.LocalPodMap == nil {
-		c.LocalPodMap = make(map[string]*RedisPod)
+		c.LocalPodMap = make(map[string]*common.RedisPod)
 	}
 	if c.RemotePodMap == nil {
-		c.RemotePodMap = make(map[string]*RedisPod)
+		c.RemotePodMap = make(map[string]*common.RedisPod)
 	}
 	if c.PodMap == nil {
-		c.PodMap = make(map[string]*RedisPod)
+		c.PodMap = make(map[string]*common.RedisPod)
 	}
 	// Initialize local sentinel
 	if c.LocalSentinel.Name == "" {
@@ -319,10 +320,10 @@ func (c *Constellation) LoadLocalPods() error {
 			log.Printf("ERROR: No pod found on LOCAL sentinel for %s", pname)
 		}
 		if c.PodMap == nil {
-			c.PodMap = make(map[string]*RedisPod)
+			c.PodMap = make(map[string]*common.RedisPod)
 		}
 		if c.LocalPodMap == nil {
-			c.LocalPodMap = make(map[string]*RedisPod)
+			c.LocalPodMap = make(map[string]*common.RedisPod)
 		}
 		pod.Master = master
 		c.PodMap[pod.Name] = &pod
@@ -409,7 +410,7 @@ func (c *Constellation) MonitorPod(podname, address string, port, quorum int, au
 	}
 	quorumReached := false
 	successfulSentinels := 0
-	var pod RedisPod
+	var pod common.RedisPod
 	neededSentinels := quorum + 1
 
 	sentinels, err := c.GetAvailableSentinels(podname, neededSentinels)
@@ -782,9 +783,9 @@ func (c *Constellation) AddSentinel(ip string, port int) error {
 	return nil
 }
 
-// LoadNodesForPod is called to add the master and slave nodes for the
+// common.LoadNodesForPod is called to add the master and slave nodes for the
 // given pod.
-func (c *Constellation) LoadNodesForPod(pod *RedisPod, sentinel *Sentinel) {
+func (c *Constellation) LoadNodesForPod(pod *common.RedisPod, sentinel *Sentinel) {
 	mi, err := sentinel.GetMaster(pod.Name)
 	if err != nil {
 		log.Printf("WARNING: Pod '%s' in config but not found when talking to the sentinel controller. Err: '%s'", pod.Name, err)
@@ -824,7 +825,7 @@ func (c *Constellation) SentinelCount() int {
 // interrogation or througg known-sentinel directives
 func (c *Constellation) LoadRemotePods() error {
 	if c.RemotePodMap == nil {
-		c.RemotePodMap = make(map[string]*RedisPod)
+		c.RemotePodMap = make(map[string]*common.RedisPod)
 	}
 	sentinels := []*Sentinel{&c.LocalSentinel}
 	log.Printf("Loading pods on %d sentinels", len(sentinels))
@@ -893,9 +894,9 @@ func (c *Constellation) ErrorPodCount() (count int) {
 		return c.NumErrorPods
 	}
 	log.Print("ErrorPodCount calling full check")
-	var epods []*RedisPod
-	errormap := make(map[string]*RedisPod)
-	cleanmap := make(map[string]*RedisPod)
+	var epods []*common.RedisPod
+	errormap := make(map[string]*common.RedisPod)
+	cleanmap := make(map[string]*common.RedisPod)
 	for _, pod := range c.PodMap {
 		_, inerror := errormap[pod.Name]
 		_, clean := cleanmap[pod.Name]
@@ -922,7 +923,7 @@ func (c *Constellation) ErrorPodCount() (count int) {
 
 // GetPodsInError is used to get the list of pods currently reporting
 // errors
-func (c *Constellation) GetPodsInError() (errors []*RedisPod) {
+func (c *Constellation) GetPodsInError() (errors []*common.RedisPod) {
 	log.Print("GetPodsInError called")
 	c.ErrorPodCount()
 	return c.PodsInError
@@ -938,7 +939,7 @@ func (c *Constellation) PodCount() int {
 // BalancePod is used to rebalance a pod. This means pulling a lis tof
 // available sentinels, determining how many are "missing" and adding
 // the pod to the appropriate number of sentinels to bring it up to spec
-func (c *Constellation) BalancePod(pod *RedisPod) {
+func (c *Constellation) BalancePod(pod *common.RedisPod) {
 	pod, _ = c.GetPod(pod.Name) // testing a theory
 	log.Print("Balance called on Pod" + pod.Name)
 	neededTotal := pod.Info.Quorum + 1
@@ -1021,8 +1022,8 @@ func (c *Constellation) GetMaster(podname string) (master structures.MasterAddre
 	return master, fmt.Errorf("No Sentinels available for pod '%s'", podname)
 }
 
-// GetPod returns a *RedisPod instance for the given podname
-func (c *Constellation) GetPod(podname string) (pod *RedisPod, err error) {
+// GetPod returns a *common.RedisPod instance for the given podname
+func (c *Constellation) GetPod(podname string) (pod *common.RedisPod, err error) {
 	pod, islocal := c.LocalPodMap[podname]
 
 	if islocal {
@@ -1087,7 +1088,7 @@ func (c *Constellation) GetSlaves(podname string) (slaves []structures.SlaveInfo
 }
 
 // GetPods returns the list of known pods
-func (c *Constellation) GetPods() (pods []*RedisPod) {
+func (c *Constellation) GetPods() (pods []*common.RedisPod) {
 	podmap, _ := c.GetPodMap()
 	havepods := make(map[string]interface{})
 	for _, pod := range podmap {
@@ -1105,8 +1106,8 @@ func (c *Constellation) GetPods() (pods []*RedisPod) {
 
 // GetPodMap returs the current pod mapping. This combines local and
 // remote sentinels to get all known pods in the cluster
-func (c *Constellation) GetPodMap() (pods map[string]*RedisPod, err error) {
-	pods = make(map[string]*RedisPod)
+func (c *Constellation) GetPodMap() (pods map[string]*common.RedisPod, err error) {
+	pods = make(map[string]*common.RedisPod)
 	for k, v := range c.LocalPodMap {
 		pods[k] = v
 	}

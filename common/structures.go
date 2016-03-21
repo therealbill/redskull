@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/therealbill/libredis/client"
-	"github.com/therealbill/libredis/info"
 	"github.com/therealbill/libredis/structures"
 )
 
@@ -69,7 +68,7 @@ type RedisNode struct {
 type RedisPod struct {
 	Name                  string
 	Info                  structures.MasterInfo
-	Slaves                []info.InfoSlaves
+	Slaves                []structures.InfoSlaves
 	Master                *RedisNode
 	SentinelCount         int
 	ActiveSentinelCount   int

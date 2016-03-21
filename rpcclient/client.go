@@ -7,7 +7,6 @@ import (
 	"net/rpc"
 	"time"
 
-	"github.com/therealbill/redskull/actions"
 	"github.com/therealbill/redskull/common"
 )
 
@@ -150,10 +149,8 @@ func (c *Client) BalancePod(podname string) error {
 	return nil
 }
 
-
 //ValidatePodSentinels validates the sentinels listed for the given pod.
-func (c* Client) ValidatePodSentinels(podname string) (map[string]bool,error) {
-	checks := make(make[string]bool)
-
+func (c *Client) ValidatePodSentinels(podname string) (map[string]bool, error) {
+	checks := make(map[string]bool)
+	return checks, nil
 }
-
