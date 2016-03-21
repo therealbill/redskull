@@ -10,6 +10,7 @@ import (
 
 	"github.com/therealbill/libredis/client"
 	"github.com/therealbill/libredis/structures"
+	"github.com/therealbill/redskull/common"
 )
 
 type Sentinel struct {
@@ -19,9 +20,9 @@ type Sentinel struct {
 	Connection     *client.Redis
 	Errors         int
 	Info           structures.RedisInfoAll
-	PodMap         map[string]RedisPod
-	Pods           []RedisPod
-	PodsInError    []RedisPod
+	PodMap         map[string]common.RedisPod
+	Pods           []common.RedisPod
+	PodsInError    []common.RedisPod
 	KnownSentinels map[string]*Sentinel
 	DialConfig     client.DialConfig
 }
@@ -41,9 +42,9 @@ func (s *Sentinel) PodCount() int {
 }
 
 func (s *Sentinel) LoadPods() error {
-	var pods []RedisPod
-	var epods []RedisPod
-	podmap := make(map[string]RedisPod)
+	var pods []common.RedisPod
+	var epods []common.RedisPod
+	podmap := make(map[string]common.RedisPod)
 	if s.KnownSentinels == nil {
 		s.KnownSentinels = make(map[string]*Sentinel)
 	}
@@ -190,7 +191,7 @@ func (s *Sentinel) GetMaster(podname string) (master structures.MasterAddress, e
 	return
 }
 
-func (s *Sentinel) MonitorPod(podname, address string, port, quorum int, auth string) (rp RedisPod, err error) {
+func (s *Sentinel) MonitorPod(podname, address string, port, quorum int, auth string) (rp common.RedisPod, err error) {
 	// TODO: Update to new common and error packages
 	//log.Printf("S:MP-> add called for %s-> %s:%d", podname, address, port)
 	conn, err := client.Dial(s.Host, s.Port)
@@ -209,7 +210,7 @@ func (s *Sentinel) MonitorPod(podname, address string, port, quorum int, auth st
 	if err != nil {
 		log.Printf("S:MP Error on s.GetPod: %s", err.Error())
 	}
-	_, err = LoadNodeFromHostPort(address, port, auth)
+	_, err = common.LoadNodeFromHostPort(address, port, auth)
 	if err != nil {
 		return rp, fmt.Errorf("S:MP-> unable to load new pod's master node: Error: %s", err)
 	}
@@ -231,12 +232,12 @@ func (s *Sentinel) RemovePod(podname string) (ok bool, err error) {
 	return true, err
 }
 
-func (s *Sentinel) GetPods() (pods map[string]RedisPod, err error) {
+func (s *Sentinel) GetPods() (pods map[string]common.RedisPod, err error) {
 	//err = s.LoadPods()
 	return s.PodMap, err
 }
 
-func (s *Sentinel) GetPod(podname string) (rp RedisPod, err error) {
+func (s *Sentinel) GetPod(podname string) (rp common.RedisPod, err error) {
 	//log.Printf("Sentinel.Getpod called for pod '%s'", podname)
 	conn, err := client.Dial(s.Host, s.Port)
 	if err != nil {
@@ -263,7 +264,7 @@ func (s *Sentinel) GetPod(podname string) (rp RedisPod, err error) {
 		return rp, err
 	}
 	if s.PodMap == nil {
-		s.PodMap = make(map[string]RedisPod)
+		s.PodMap = make(map[string]common.RedisPod)
 	}
 	s.PodMap[podname] = rp
 	return rp, nil
