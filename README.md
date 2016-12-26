@@ -1,3 +1,4 @@
+[![Code Climate](https://codeclimate.com/github/therealbill/redskull/badges/gpa.svg)](https://codeclimate.com/github/therealbill/redskull)
 [![Stories in Ready](https://badge.waffle.io/therealbill/redskull.png?label=ready&title=Ready)](https://waffle.io/therealbill/redskull)
 # What Is Red Skull?
 
