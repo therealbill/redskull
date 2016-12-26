@@ -3,7 +3,7 @@ package actions
 import (
 	"time"
 
-	"github.com/therealbill/redskull/common"
+	"github.com/therealbill/redskull/redskull-controller/common"
 )
 
 /*

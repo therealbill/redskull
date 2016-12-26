@@ -14,8 +14,8 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/therealbill/airbrake-go"
-	"github.com/therealbill/redskull/actions"
-	"github.com/therealbill/redskull/common"
+	"github.com/therealbill/redskull/redskull-controller/actions"
+	"github.com/therealbill/redskull/redskull-controller/common"
 )
 
 // constellation represents the constellation serveed by this Red Skull

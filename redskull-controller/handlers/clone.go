@@ -12,7 +12,7 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/therealbill/libredis/client"
-	"github.com/therealbill/redskull/common"
+	"github.com/therealbill/redskull/redskull-controller/common"
 	"github.com/zenazn/goji/web"
 )
 

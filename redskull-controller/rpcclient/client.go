@@ -7,7 +7,7 @@ import (
 	"net/rpc"
 	"time"
 
-	"github.com/therealbill/redskull/common"
+	"github.com/therealbill/redskull/redskull-controller/common"
 )
 
 type Client struct {

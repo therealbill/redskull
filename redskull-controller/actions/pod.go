@@ -6,7 +6,7 @@ package actions
 
 import (
 	"github.com/therealbill/libredis/structures"
-	"github.com/therealbill/redskull/common"
+	"github.com/therealbill/redskull/redskull-controller/common"
 )
 
 /*

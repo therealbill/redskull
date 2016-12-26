@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/therealbill/redskull/common"
+	"github.com/therealbill/redskull/redskull-controller/common"
 	"github.com/zenazn/goji/web"
 )
 

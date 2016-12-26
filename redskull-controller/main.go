@@ -1,4 +1,4 @@
-package main // import "github.com/therealbill/redskull"
+package main // import "github.com/therealbill/redskull/redskull-controller"
 
 import (
 	"encoding/json"
@@ -11,8 +11,8 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/therealbill/airbrake-go"
-	"github.com/therealbill/redskull/actions"
-	"github.com/therealbill/redskull/handlers"
+	"github.com/therealbill/redskull/redskull-controller/actions"
+	"github.com/therealbill/redskull/redskull-controller/handlers"
 	"github.com/zenazn/goji"
 )
 

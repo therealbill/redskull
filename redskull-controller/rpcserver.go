@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/therealbill/libredis/client"
-	"github.com/therealbill/redskull/actions"
-	"github.com/therealbill/redskull/common"
-	"github.com/therealbill/redskull/handlers"
-	"github.com/therealbill/redskull/rpcclient"
+	"github.com/therealbill/redskull/redskull-controller/actions"
+	"github.com/therealbill/redskull/redskull-controller/common"
+	"github.com/therealbill/redskull/redskull-controller/handlers"
+	"github.com/therealbill/redskull/redskull-controller/rpcclient"
 )
 
 type Item struct {
