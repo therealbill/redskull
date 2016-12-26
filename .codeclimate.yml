@@ -1,0 +1,29 @@
+---
+engines:
+  golint:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      languages:
+      - golang
+  eslint:
+    enabled: true
+  fixme:
+    enabled: true
+  phpmd:
+    enabled: false
+ratings:
+  paths:
+  - "**.css"
+  - "**.inc"
+  - "**.js"
+  - "**.jsx"
+  - "**.module"
+  - "**.php"
+  - "**.py"
+  - "**.rb"
+exclude_paths:
+    - "html/"
+    - "Godep/"
+    - "docker/"
