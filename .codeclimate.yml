@@ -1,0 +1,20 @@
+---
+engines:
+  golint:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      languages:
+      - golang
+  eslint:
+    enabled: true
+  fixme:
+    enabled: true
+ratings:
+  paths:
+  - "**.go"
+exclude_paths:
+    - "html/"
+    - "Godep/"
+    - "docker/"
