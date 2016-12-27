@@ -1,0 +1,38 @@
+{
+	"ImportPath": "github.com/therealbill/redskull/redskull-agent",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v74",
+	"Deps": [
+		{
+			"ImportPath": "github.com/hashicorp/consul/api",
+			"Comment": "v0.7.2-4-gdc2a54a",
+			"Rev": "dc2a54a77b3b053e77298d4ce587bdf0bd0bcd1c"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-cleanhttp",
+			"Rev": "ad28ea4487f05916463e2423a55166280e8254b5"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/serf/coordinate",
+			"Comment": "v0.8.0-23-g1d4fa60",
+			"Rev": "1d4fa605f6ff3ed628d7ae5eda7c0e56803e72a5"
+		},
+		{
+			"ImportPath": "github.com/therealbill/libredis/client",
+			"Rev": "7b3ad686c9959a5ba9af21ef5f6d45a366844c3d"
+		},
+		{
+			"ImportPath": "github.com/therealbill/libredis/info",
+			"Rev": "7b3ad686c9959a5ba9af21ef5f6d45a366844c3d"
+		},
+		{
+			"ImportPath": "github.com/therealbill/libredis/structures",
+			"Rev": "7b3ad686c9959a5ba9af21ef5f6d45a366844c3d"
+		},
+		{
+			"ImportPath": "github.com/urfave/cli",
+			"Comment": "v1.18.0-55-g33bb4c1",
+			"Rev": "33bb4c121333cd8eb7d8cc8d74474f4ec156f371"
+		}
+	]
+}
