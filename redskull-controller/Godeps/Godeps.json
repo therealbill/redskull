@@ -1,27 +1,45 @@
 {
-	"ImportPath": "github.com/therealbill/redskull",
-	"GoVersion": "go1.5.1",
+	"ImportPath": "github.com/therealbill/redskull/redskull-controller",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v74",
 	"Deps": [
 		{
 			"ImportPath": "github.com/dustin/go-humanize",
-			"Rev": "145fabdb1ab757076a70a886d092a3af27f66f4c"
+			"Rev": "2fcb5204cdc65b4bec9fd0a87606bb0d0e3c54e8"
 		},
 		{
 			"ImportPath": "github.com/golang/groupcache",
-			"Rev": "86ced4a88341076f89d57b6937a5c91ec1762ee3"
+			"Rev": "a6b377e3400b08991b80d6805d627f347f983866"
+		},
+		{
+			"ImportPath": "github.com/golang/groupcache/consistenthash",
+			"Rev": "a6b377e3400b08991b80d6805d627f347f983866"
+		},
+		{
+			"ImportPath": "github.com/golang/groupcache/groupcachepb",
+			"Rev": "a6b377e3400b08991b80d6805d627f347f983866"
+		},
+		{
+			"ImportPath": "github.com/golang/groupcache/lru",
+			"Rev": "a6b377e3400b08991b80d6805d627f347f983866"
+		},
+		{
+			"ImportPath": "github.com/golang/groupcache/singleflight",
+			"Rev": "a6b377e3400b08991b80d6805d627f347f983866"
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
-			"Rev": "7f07925444bb51fa4cf9dfe6f7661876f8852275"
+			"Rev": "f592bd283e9ef86337a432eb50e592278c3d534d"
 		},
 		{
 			"ImportPath": "github.com/kelseyhightower/envconfig",
-			"Comment": "v1.0.0-6-ge904934",
-			"Rev": "e9049346b6aae8e6ad500c5a4519ad029439d660"
+			"Comment": "1.1.0-26-g49e8884",
+			"Rev": "49e88841e458491c935563aac0eb7e871c3375f4"
 		},
 		{
 			"ImportPath": "github.com/pborman/uuid",
-			"Rev": "cccd189d45f7ac3368a0d127efb7f4d08ae0b655"
+			"Comment": "v1.0-11-gc55201b",
+			"Rev": "c55201b036063326c5b1b89ccfe45a184973d073"
 		},
 		{
 			"ImportPath": "github.com/therealbill/airbrake-go",
@@ -29,20 +47,50 @@
 		},
 		{
 			"ImportPath": "github.com/therealbill/libredis/client",
-			"Rev": "baf971b9ebd729fe512cfb54c7205ec5fa073b8c"
+			"Rev": "7b3ad686c9959a5ba9af21ef5f6d45a366844c3d"
 		},
 		{
 			"ImportPath": "github.com/therealbill/libredis/info",
-			"Rev": "baf971b9ebd729fe512cfb54c7205ec5fa073b8c"
+			"Rev": "7b3ad686c9959a5ba9af21ef5f6d45a366844c3d"
 		},
 		{
 			"ImportPath": "github.com/therealbill/libredis/structures",
-			"Rev": "baf971b9ebd729fe512cfb54c7205ec5fa073b8c"
+			"Rev": "7b3ad686c9959a5ba9af21ef5f6d45a366844c3d"
 		},
 		{
 			"ImportPath": "github.com/zenazn/goji",
-			"Comment": "v0.9.0-15-g0276f3f",
-			"Rev": "0276f3f3fb609aabf8d9ba7aea10c80ec979989d"
+			"Comment": "v1.0",
+			"Rev": "64eb34159fe53473206c2b3e70fe396a639452f2"
+		},
+		{
+			"ImportPath": "github.com/zenazn/goji/bind",
+			"Comment": "v1.0",
+			"Rev": "64eb34159fe53473206c2b3e70fe396a639452f2"
+		},
+		{
+			"ImportPath": "github.com/zenazn/goji/graceful",
+			"Comment": "v1.0",
+			"Rev": "64eb34159fe53473206c2b3e70fe396a639452f2"
+		},
+		{
+			"ImportPath": "github.com/zenazn/goji/graceful/listener",
+			"Comment": "v1.0",
+			"Rev": "64eb34159fe53473206c2b3e70fe396a639452f2"
+		},
+		{
+			"ImportPath": "github.com/zenazn/goji/web",
+			"Comment": "v1.0",
+			"Rev": "64eb34159fe53473206c2b3e70fe396a639452f2"
+		},
+		{
+			"ImportPath": "github.com/zenazn/goji/web/middleware",
+			"Comment": "v1.0",
+			"Rev": "64eb34159fe53473206c2b3e70fe396a639452f2"
+		},
+		{
+			"ImportPath": "github.com/zenazn/goji/web/mutil",
+			"Comment": "v1.0",
+			"Rev": "64eb34159fe53473206c2b3e70fe396a639452f2"
 		}
 	]
 }
